@@ -23,7 +23,9 @@ jobs:
   integration:
     needs: unit
     runs-on: ubuntu-latest
-    # Skip on forks (secrets are unavailable) and when the token secret is missing.
+    # Environment provides QTSURFER_API_URL (variable) and JWT_API_TOKEN (secret).
+    environment: Preproduction
+    # Skip on forks — secrets are never exposed to forks.
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +40,7 @@ jobs:
           QTSURFER_API_URL: ${{ vars.QTSURFER_API_URL }}
         run: |
           if [ -z "$JWT_API_TOKEN" ]; then
-            echo "::warning::JWT_API_TOKEN not configured; skipping integration test."
+            echo "::warning::JWT_API_TOKEN not configured in the Preproduction environment; skipping."
             exit 0
           fi
           npm run test:integration

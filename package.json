@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -51,6 +51,7 @@
     "cockatiel": "^3.2.1"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
     "typescript": "^5.8.0",
     "vitest": "^4.1.4"
