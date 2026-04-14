@@ -12,9 +12,11 @@ const strategyPath =
 
 const describeIfToken = token ? describe : describe.skip;
 
-function yesterdayIso(): string {
-  const d = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
+function dayStartIso(offsetDays: number): string {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - offsetDays);
+  return d.toISOString();
 }
 
 async function loadStrategy(): Promise<string> {
@@ -25,7 +27,8 @@ describeIfToken('integration: backtest BTC/USDT on binance (yesterday)', () => {
   it('completes compile → prepare → execute and returns a ResultMap', async () => {
     const qts = new QTSurfer({ baseUrl, token });
     const strategy = await loadStrategy();
-    const day = yesterdayIso();
+    const from = dayStartIso(1); // yesterday 00:00 UTC
+    const to = dayStartIso(0); // today 00:00 UTC (24h window)
 
     const stages: string[] = [];
     const result = await qts.backtest(
@@ -33,8 +36,8 @@ describeIfToken('integration: backtest BTC/USDT on binance (yesterday)', () => {
         strategy,
         exchangeId: 'binance',
         instrument: 'BTC/USDT',
-        from: day,
-        to: day,
+        from,
+        to,
       },
       {
         onProgress: (p) => {

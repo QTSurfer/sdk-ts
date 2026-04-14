@@ -1,6 +1,6 @@
 {
   "name": "@qtsurfer/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Opinionated TypeScript SDK for QTSurfer: workflow orchestration, domain objects, normalized errors",
   "type": "module",
   "main": "./dist/index.js",
@@ -18,8 +18,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "lint": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "build": "tsup",
+    "lint": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -47,12 +47,13 @@
     "access": "public"
   },
   "dependencies": {
-    "@qtsurfer/api-client": "^0.1.0",
+    "@qtsurfer/api-client": "^0.1.1",
     "cockatiel": "^3.2.1"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
+    "tsup": "^8.5.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.4"
   },

@@ -70,6 +70,24 @@ const TICKER: DataSourceType = 'ticker';
 
 type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed';
 
+/**
+ * Normalize the backend job status to a stable lowercase form so we can
+ * reason about it regardless of OpenAPI spec drift (the live API sometimes
+ * returns lowercase values like `queued` / `completed` / `failed`).
+ */
+type NormalizedStatus = 'in-progress' | 'completed' | 'failed' | 'aborted';
+
+function normalizeStatus(raw: unknown): NormalizedStatus {
+  const value = typeof raw === 'string' ? raw.toLowerCase() : '';
+  if (value === 'completed') return 'completed';
+  if (value === 'failed') return 'failed';
+  if (value === 'aborted' || value === 'cancelled' || value === 'canceled') {
+    return 'aborted';
+  }
+  // new / started / queued / running / anything else → still running
+  return 'in-progress';
+}
+
 export async function backtest(
   req: BacktestRequest,
   opts: BacktestOptions = {},
@@ -92,8 +110,8 @@ export async function backtest(
 function buildStagePolicy(opts: BacktestOptions): IPolicy<ICancellationContext, never> {
   const retryPolicy = retry(
     handleWhenResult((r) => {
-      const status = (r as { status?: JobStatus } | undefined)?.status;
-      return status === 'New' || status === 'Started';
+      const status = (r as { status?: unknown } | undefined)?.status;
+      return normalizeStatus(status) === 'in-progress';
     }),
     {
       maxAttempts: Number.MAX_SAFE_INTEGER,
@@ -142,10 +160,11 @@ async function compileStrategy(
     },
   );
 
-  if (status.status === 'Failed') {
+  const norm = normalizeStatus(status.status);
+  if (norm === 'failed') {
     throw new QTSStrategyCompileError(status.statusDetail ?? 'Strategy compilation failed');
   }
-  if (status.status === 'Aborted') {
+  if (norm === 'aborted') {
     throw new QTSCanceledError('Strategy compilation aborted');
   }
   if (!status.strategyId) {
@@ -187,10 +206,11 @@ async function prepareData(
     },
   );
 
-  if (state.status === 'Failed') {
+  const prepNorm = normalizeStatus(state.status);
+  if (prepNorm === 'failed') {
     throw new QTSPreparationError(state.statusDetail ?? 'Data preparation failed');
   }
-  if (state.status === 'Aborted') {
+  if (prepNorm === 'aborted') {
     throw new QTSCanceledError('Data preparation aborted');
   }
   return prepareJobId;
@@ -237,10 +257,11 @@ async function executeStrategy(
       },
     );
 
-    if (finalResult.status === 'Failed') {
+    const execNorm = normalizeStatus(finalResult.status);
+    if (execNorm === 'failed') {
       throw new QTSExecutionError(finalResult.statusDetail ?? 'Execution failed');
     }
-    if (finalResult.status === 'Aborted') {
+    if (execNorm === 'aborted') {
       throw new QTSCanceledError('Execution aborted');
     }
     return finalResult.__result;
