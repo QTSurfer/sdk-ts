@@ -7,7 +7,6 @@ export {
   QTSTimeoutError,
   QTSCanceledError,
 } from './errors';
-export { poll, type PollOptions } from './poll';
 export type {
   BacktestRequest,
   BacktestResult,

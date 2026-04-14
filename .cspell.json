@@ -9,9 +9,12 @@
     "Backtest",
     "Backtesting",
     "BTCUSDT",
+    "binance",
+    "cockatiel",
     "heyapi",
     "openapi",
-    "Lastra"
+    "Lastra",
+    "iops"
   ],
   "ignorePaths": [
     "node_modules",
