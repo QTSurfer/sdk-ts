@@ -262,15 +262,19 @@ async function runStage<T extends { status: JobStatus }>(
 ): Promise<T> {
   try {
     return await policy.execute(async (ctx) => {
+      if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted');
       const result = await fetchFn(ctx);
       onEachAttempt?.(result);
+      if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted');
       return result;
     }, opts.signal);
   } catch (err) {
+    if (err instanceof QTSCanceledError) throw err;
     if (err instanceof TaskCancelledError) {
       if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted', err);
       throw new QTSTimeoutError(`Stage exceeded ${opts.timeoutMs}ms`, err);
     }
+    if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted', err);
     throw err;
   }
 }

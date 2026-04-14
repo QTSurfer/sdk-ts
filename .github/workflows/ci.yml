@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,3 +18,27 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: npm test
+
+  integration:
+    needs: unit
+    runs-on: ubuntu-latest
+    # Skip on forks (secrets are unavailable) and when the token secret is missing.
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run integration test
+        env:
+          JWT_API_TOKEN: ${{ secrets.JWT_API_TOKEN }}
+          QTSURFER_API_URL: ${{ vars.QTSURFER_API_URL }}
+        run: |
+          if [ -z "$JWT_API_TOKEN" ]; then
+            echo "::warning::JWT_API_TOKEN not configured; skipping integration test."
+            exit 0
+          fi
+          npm run test:integration

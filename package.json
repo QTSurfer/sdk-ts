@@ -20,6 +20,9 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -48,7 +51,9 @@
     "cockatiel": "^3.2.1"
   },
   "devDependencies": {
-    "typescript": "^5.8.0"
+    "@vitest/coverage-v8": "^4.1.4",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.4"
   },
   "engines": {
     "node": ">=20"
