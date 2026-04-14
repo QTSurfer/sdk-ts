@@ -1,0 +1,55 @@
+{
+  "name": "@qtsurfer/sdk",
+  "version": "0.0.1",
+  "description": "Opinionated TypeScript SDK for QTSurfer: workflow orchestration, domain objects, normalized errors",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QTSurfer/sdk-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/QTSurfer/sdk-ts/issues"
+  },
+  "homepage": "https://github.com/QTSurfer/sdk-ts#readme",
+  "author": "QTSurfer (https://github.com/QTSurfer)",
+  "license": "Apache-2.0",
+  "keywords": [
+    "qtsurfer",
+    "sdk",
+    "typescript",
+    "backtesting",
+    "trading",
+    "workflow"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@qtsurfer/api-client": "file:../qtsurfer-api-client-ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

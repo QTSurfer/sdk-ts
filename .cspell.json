@@ -1,0 +1,22 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "qtsurfer",
+    "QTSurfer",
+    "backtest",
+    "backtesting",
+    "Backtest",
+    "Backtesting",
+    "BTCUSDT",
+    "heyapi",
+    "openapi",
+    "Lastra"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "package-lock.json",
+    "pnpm-lock.yaml"
+  ]
+}
