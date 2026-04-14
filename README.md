@@ -153,7 +153,21 @@ src/
 | Script | Description |
 | ------ | ----------- |
 | `npm run lint` | Type-check without emitting |
-| `npm run build` | Compile to `dist/` |
+| `npm run build` | Bundle to `dist/` via `tsup` |
+| `npm test` | Run unit tests |
+| `npm run test:integration` | Run the integration test (requires `JWT_API_TOKEN`) |
+| `npm run changeset` | Record a changeset for the next release |
+| `npm run changeset:version` | Consume pending changesets: bump `package.json` and update `CHANGELOG.md` |
+| `npm run changeset:publish` | Publish released packages to npm (used by CI) |
+
+### Releasing
+
+Versioning and changelogs are managed with [changesets](https://github.com/changesets/changesets):
+
+1. Create a changeset describing your change: `npm run changeset`
+2. Commit the generated `.changeset/<slug>.md` with your PR.
+3. When ready to release, run `npm run changeset:version` locally. It bumps `package.json` and appends to `CHANGELOG.md`.
+4. Commit the version bump, tag `vX.Y.Z`, and push the tag; the `Publish to npm` workflow handles the rest.
 
 ## License
 

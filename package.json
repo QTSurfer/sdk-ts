@@ -23,6 +23,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -51,6 +54,8 @@
     "cockatiel": "^3.2.1"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
     "tsup": "^8.5.1",
