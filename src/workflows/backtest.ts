@@ -33,7 +33,7 @@ export interface BacktestRequest {
   strategy: string;
   /** Exchange id, e.g. `binance` */
   exchangeId: string;
-  /** Instrument symbol, e.g. `BTCUSDT` */
+  /** Instrument symbol, e.g. `BTC/USDT` */
   instrument: string;
   /** Date range start (ISO-8601, ISO DATE or BASIC ISO DATE) */
   from: string;

@@ -35,7 +35,7 @@ const result = await qts.backtest(
   {
     strategy: readFileSync('./MyStrategy.java', 'utf8'),
     exchangeId: 'binance',
-    instrument: 'BTCUSDT',
+    instrument: 'BTC/USDT',
     from: '2024-01-01',
     to: '2024-12-31',
     storeSignals: true,
