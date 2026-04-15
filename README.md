@@ -155,7 +155,7 @@ src/
 | `npm run lint` | Type-check without emitting |
 | `npm run build` | Bundle to `dist/` via `tsup` |
 | `npm test` | Run unit tests |
-| `npm run test:integration` | Run the integration test (requires `JWT_API_TOKEN`) |
+| `npm run test:integration` | Run the integration test (requires `JWT_API_TOKEN`). Set `QTSURFER_TEST_VERBOSE=1` to stream progress + final result |
 | `npm run changeset` | Record a changeset for the next release |
 | `npm run changeset:version` | Consume pending changesets: bump `package.json` and update `CHANGELOG.md` |
 | `npm run changeset:publish` | Publish released packages to npm (used by CI) |

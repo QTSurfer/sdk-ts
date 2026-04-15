@@ -11,6 +11,10 @@ const strategyPath =
   resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/ForcedTradeStrategy.java');
 
 const describeIfToken = token ? describe : describe.skip;
+const verbose = process.env.QTSURFER_TEST_VERBOSE === '1' || process.env.QTSURFER_TEST_VERBOSE === 'true';
+const log = (...args: unknown[]) => {
+  if (verbose) console.log(...args);
+};
 
 function dayStartIso(offsetDays: number): string {
   const d = new Date();
@@ -42,6 +46,7 @@ describeIfToken('integration: backtest BTC/USDT on binance (yesterday)', () => {
       {
         onProgress: (p) => {
           const label = p.percent !== undefined ? `${p.stage} ${p.percent.toFixed(1)}%` : p.stage;
+          log(`Progress: ${label}`);
           if (stages.at(-1) !== label) stages.push(label);
         },
         pollIntervalMs: 500,
@@ -56,6 +61,7 @@ describeIfToken('integration: backtest BTC/USDT on binance (yesterday)', () => {
     expect(stages.some((s) => s.startsWith('compiling'))).toBe(true);
     expect(stages.some((s) => s.startsWith('preparing'))).toBe(true);
     expect(stages.some((s) => s.startsWith('executing'))).toBe(true);
+    log('Result:', JSON.stringify(result, null, 2));
   });
 });
 
