@@ -68,7 +68,7 @@ export interface BacktestOptions {
 
 const TICKER: DataSourceType = 'ticker';
 
-type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed';
+type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed' | 'Partial';
 
 /**
  * Normalize the backend job status to a stable lowercase form so we can

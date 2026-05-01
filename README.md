@@ -67,6 +67,32 @@ Polling uses exponential backoff (`intervalMs * 1.5`, capped at `maxIntervalMs`)
 
 Progress is emitted on every stage transition and after each poll whose `size > 0`.
 
+## Hourly tickers/klines downloads
+
+Stream one hour of raw ticker or kline data for an instrument. The default wire format is [Lastra](https://github.com/QTSurfer/lastra-ts) (`application/vnd.lastra`); pass `format: 'parquet'` for on-the-fly Parquet conversion.
+
+```ts
+// Lastra (default)
+const blob = await qts.tickers({
+  exchangeId: 'binance',
+  base: 'BTC',
+  quote: 'USDT',
+  hour: '2026-01-15T10',
+});
+await Bun.write('BTC_USDT_2026-01-15_h10.lastra', await blob.arrayBuffer());
+
+// Parquet
+const klines = await qts.klines({
+  exchangeId: 'binance',
+  base: 'BTC',
+  quote: 'USDT',
+  hour: '2026-01-15T10',
+  format: 'parquet',
+});
+```
+
+HTTP errors surface as `QTSDownloadError` (subclass of `QTSError`).
+
 ## Error hierarchy
 
 All SDK errors extend `QTSError` so you can catch them generically or match by subclass.
@@ -77,6 +103,7 @@ import {
   QTSStrategyCompileError,
   QTSPreparationError,
   QTSExecutionError,
+  QTSDownloadError,
   QTSTimeoutError,
   QTSCanceledError,
 } from '@qtsurfer/sdk';
@@ -90,6 +117,8 @@ try {
     console.error('Data prep failed:', e.message);
   } else if (e instanceof QTSExecutionError) {
     console.error('Execution failed:', e.message);
+  } else if (e instanceof QTSDownloadError) {
+    console.error('Download failed:', e.message);
   } else if (e instanceof QTSTimeoutError) {
     console.error('Stage timed out');
   } else if (e instanceof QTSCanceledError) {
@@ -145,7 +174,8 @@ src/
 ├── client.ts             # QTSurfer class
 ├── errors.ts             # QTSError hierarchy
 └── workflows/
-    └── backtest.ts       # compile → prepare → execute (cockatiel policies)
+    ├── backtest.ts       # compile → prepare → execute (cockatiel policies)
+    └── downloads.ts      # hourly tickers/klines as Lastra/Parquet blobs
 ```
 
 ## Development

@@ -39,3 +39,10 @@ export class QTSCanceledError extends QTSError {
     this.name = 'QTSCanceledError';
   }
 }
+
+export class QTSDownloadError extends QTSError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = 'QTSDownloadError';
+  }
+}

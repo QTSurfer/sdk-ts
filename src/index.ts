@@ -1,4 +1,4 @@
-export { QTSurfer, type QTSurferOptions } from './client';
+export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export {
   QTSError,
   QTSStrategyCompileError,
@@ -6,6 +6,7 @@ export {
   QTSExecutionError,
   QTSTimeoutError,
   QTSCanceledError,
+  QTSDownloadError,
 } from './errors';
 export type {
   BacktestRequest,
@@ -14,3 +15,4 @@ export type {
   BacktestStage,
   BacktestOptions,
 } from './workflows/backtest';
+export type { DownloadFormat } from './workflows/downloads';
