@@ -7,6 +7,7 @@ export {
   QTSTimeoutError,
   QTSCanceledError,
   QTSDownloadError,
+  QTSAuthError,
 } from './errors';
 export type {
   BacktestRequest,
@@ -16,3 +17,12 @@ export type {
   BacktestOptions,
 } from './workflows/backtest';
 export type { DownloadFormat } from './workflows/downloads';
+export {
+  auth,
+  AuthenticatedClient,
+  type AuthOptions,
+} from './auth/session';
+export {
+  InMemoryTokenStore,
+  type TokenStore,
+} from './auth/tokenStore';
