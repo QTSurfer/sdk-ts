@@ -35,6 +35,7 @@ export async function downloadTickers(params: DownloadParams): Promise<Blob> {
     throw new QTSDownloadError(
       `tickers download failed: HTTP ${response.status} — ${describe(error)}`,
       error,
+      response.status,
     );
   }
   return data as Blob;
@@ -56,6 +57,7 @@ export async function downloadKlines(params: DownloadParams): Promise<Blob> {
     throw new QTSDownloadError(
       `klines download failed: HTTP ${response.status} — ${describe(error)}`,
       error,
+      response.status,
     );
   }
   return data as Blob;

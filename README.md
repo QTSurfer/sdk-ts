@@ -20,38 +20,68 @@ pnpm add @qtsurfer/sdk
 
 ## Quick start
 
+One call: API key in, ready-to-use session out. JWT refresh on 401 is handled
+for you.
+
+```ts
+import { auth } from '@qtsurfer/sdk';
+import { readFileSync } from 'node:fs';
+
+// Reads QTSURFER_APIKEY from env when no argument is passed.
+const qts = await auth();
+// Or: const qts = await auth('ak_...');
+
+const result = await qts.backtest({
+  strategy: readFileSync('./MyStrategy.java', 'utf8'),
+  exchangeId: 'binance',
+  instrument: 'BTC/USDT',
+  from: '2024-01-01',
+  to: '2024-12-31',
+  storeSignals: true,
+});
+
+console.log('PnL:', result.pnlTotal);
+console.log('Trades:', result.totalTrades);
+```
+
+### Environment
+
+| Variable           | Purpose                                            |
+| ------------------ | -------------------------------------------------- |
+| `QTSURFER_APIKEY`  | API key consumed by `auth()` when no arg is passed |
+
+### Pluggable token storage
+
+Tokens are kept in memory by default. Implement `TokenStore` to swap in
+browser storage, a file, or a secret manager:
+
+```ts
+import { auth, type TokenStore, type AuthTokenResponse } from '@qtsurfer/sdk';
+
+const browserStore: TokenStore = {
+  load: () => JSON.parse(localStorage.getItem('qts.jwt') ?? 'null'),
+  save: (t) => localStorage.setItem('qts.jwt', JSON.stringify(t)),
+  clear: () => localStorage.removeItem('qts.jwt'),
+};
+
+const qts = await auth(undefined, { store: browserStore });
+```
+
+`auth()` also accepts `{ baseUrl, fetch }` for staging, custom HTTP
+transports, or a Node-`fetch` polyfill in legacy runtimes.
+
+### Lower-level: hand-managed JWT
+
+If you already hold a JWT and want to manage refresh yourself, the
+`QTSurfer` constructor still accepts a `token`:
+
 ```ts
 import { QTSurfer } from '@qtsurfer/sdk';
-import { readFileSync } from 'node:fs';
 
 const qts = new QTSurfer({
   baseUrl: 'https://api.qtsurfer.com/v1',
   token: process.env.QTSURFER_TOKEN,
 });
-
-const controller = new AbortController();
-
-const result = await qts.backtest(
-  {
-    strategy: readFileSync('./MyStrategy.java', 'utf8'),
-    exchangeId: 'binance',
-    instrument: 'BTC/USDT',
-    from: '2024-01-01',
-    to: '2024-12-31',
-    storeSignals: true,
-  },
-  {
-    signal: controller.signal,
-    onProgress: (p) => console.log(`[${p.stage}] ${p.percent?.toFixed(1) ?? '-'}%`),
-    pollIntervalMs: 500,
-    maxPollIntervalMs: 5000,
-    timeoutMs: 10 * 60 * 1000,
-  },
-);
-
-console.log('PnL:', result.pnlTotal);
-console.log('Trades:', result.totalTrades);
-console.log('Signals:', result.signalsUrl);
 ```
 
 ## What `backtest()` does
