@@ -51,6 +51,12 @@ export interface BacktestProgress {
   stage: BacktestStage;
   /** 0-100 when size is known. Undefined during stage start. */
   percent?: number;
+  /**
+   * Fraction (0-1) of the requested prepare window that actually holds data,
+   * reported by the backend once preparation completes. Present only on the
+   * final `preparing` event.
+   */
+  coverageRatio?: number;
 }
 
 export interface BacktestOptions {
@@ -68,7 +74,7 @@ export interface BacktestOptions {
 
 const TICKER: DataSourceType = 'ticker';
 
-type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed' | 'Partial';
+type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed';
 
 /**
  * Normalize the backend job status to a stable lowercase form so we can
@@ -213,6 +219,9 @@ async function prepareData(
   if (prepNorm === 'aborted') {
     throw new QTSCanceledError('Data preparation aborted');
   }
+  // Surface the backend's coverage ratio for the prepared window (spec 0.98.0) on the
+  // final preparing event, so callers can react to a partially-covered range.
+  opts.onProgress?.({ stage: 'preparing', percent: 100, coverageRatio: state.coverageRatio });
   return prepareJobId;
 }
 

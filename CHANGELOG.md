@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- Bump `@qtsurfer/api-client` to `^0.4.0` (API spec 0.98.0). The single-instrument preparation endpoint now returns `PrepareJobState`, which adds a `coverageRatio` (0-1) plus a per-hour coverage breakdown, and `Partial` is removed from the job status enum. `BacktestProgress` gains an optional `coverageRatio`, emitted on the final `preparing` event so callers can react to a partially-covered window. No breaking change to the SDK's public method signatures.
+
 ## 0.4.0
 
 ### Minor Changes
