@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- Bump `@qtsurfer/api-client` to `^0.3.0`, which changes `getInstruments` to return a HAL envelope (`InstrumentListResponse` with `data`, `meta`, `_links`) instead of a bare array, and moves `InstrumentDetail.dataFrom`/`dataTo` into a nested `coverage` object (`InstrumentCoverage` / `CoverageWindow`). The SDK does not yet expose an instruments workflow method, so this is a type-only dependency bump with no behavioral change to `@qtsurfer/sdk`'s public API.
+
 ## 0.3.0
 
 ### Minor Changes

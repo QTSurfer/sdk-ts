@@ -1,6 +1,6 @@
 {
   "name": "@qtsurfer/sdk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Opinionated TypeScript SDK for QTSurfer: workflow orchestration, domain objects, normalized errors",
   "type": "module",
   "main": "./dist/index.js",
@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@qtsurfer/api-client": "^0.2.1",
+    "@qtsurfer/api-client": "^0.3.0",
     "cockatiel": "^3.2.1"
   },
   "devDependencies": {
