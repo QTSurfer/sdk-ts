@@ -173,6 +173,9 @@ Polling, retry, backoff, timeout, and cancellation are delegated to [`cockatiel`
 
 ## Roadmap
 
+Milestone labels below (`v0.1`–`v0.4`) track feature scope, not the npm package's
+semver — see [CHANGELOG.md](./CHANGELOG.md) for the actual release history.
+
 ### v0.1 — Core workflow ✅
 
 - [x] `QTSurfer` client over `@qtsurfer/api-client`
@@ -203,6 +206,9 @@ src/
 ├── index.ts              # public exports
 ├── client.ts             # QTSurfer class
 ├── errors.ts             # QTSError hierarchy
+├── auth/
+│   ├── session.ts        # authenticate() — session bootstrap + JWT refresh on 401
+│   └── tokenStore.ts     # TokenStore contract + default InMemoryTokenStore
 └── workflows/
     ├── backtest.ts       # compile → prepare → execute (cockatiel policies)
     └── downloads.ts      # hourly tickers/klines as Lastra/Parquet blobs
