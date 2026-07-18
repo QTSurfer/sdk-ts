@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { auth } from '../../src/index';
+import { authenticate } from '../../src/index';
 
 /**
  * Stub `/auth/token` server with switchable handlers, so each test can
@@ -53,7 +53,7 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-describe('integration: auth() against a stubbed /auth/token endpoint', () => {
+describe('integration: authenticate() against a stubbed /auth/token endpoint', () => {
   it('exchanges apikey for a JWT and exposes it on the session', async () => {
     handler = (_req, res) => {
       jsonResponse(res, 200, {
@@ -64,7 +64,7 @@ describe('integration: auth() against a stubbed /auth/token endpoint', () => {
       });
     };
 
-    const session = await auth('ak_int_explicit', { baseUrl });
+    const session = await authenticate('ak_int_explicit', { baseUrl });
 
     expect(session.token?.access_token).toBe('jwt-int-1');
     expect(authHits).toHaveLength(1);
@@ -82,7 +82,7 @@ describe('integration: auth() against a stubbed /auth/token endpoint', () => {
       });
     };
 
-    const session = await auth(undefined, { baseUrl });
+    const session = await authenticate(undefined, { baseUrl });
 
     expect(session.token?.tier).toBe('pro');
     expect(authHits[0]?.apikey).toBe('ak_int_from_env');
@@ -99,7 +99,7 @@ describe('integration: auth() against a stubbed /auth/token endpoint', () => {
     };
 
     const saved: unknown[] = [];
-    await auth('ak', {
+    await authenticate('ak', {
       baseUrl,
       store: {
         load: () => null,
@@ -123,6 +123,6 @@ describe('integration: auth() against a stubbed /auth/token endpoint', () => {
     };
 
     const { QTSAuthError } = await import('../../src/errors');
-    await expect(auth('ak_bad', { baseUrl })).rejects.toBeInstanceOf(QTSAuthError);
+    await expect(authenticate('ak_bad', { baseUrl })).rejects.toBeInstanceOf(QTSAuthError);
   });
 });

@@ -8,7 +8,7 @@ import type { AuthTokenResponse } from '@qtsurfer/api-client';
  * on-disk file, a secret manager, etc.
  *
  * The SDK calls {@link load} once per session-startup to seed a cached
- * token (if any), {@link save} after every successful `auth()` / refresh,
+ * token (if any), {@link save} after every successful `authenticate()` / refresh,
  * and {@link clear} when the session is explicitly invalidated.
  */
 export interface TokenStore {

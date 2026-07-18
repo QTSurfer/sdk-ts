@@ -18,7 +18,7 @@ export type {
 } from './workflows/backtest';
 export type { DownloadFormat } from './workflows/downloads';
 export {
-  auth,
+  authenticate,
   AuthenticatedClient,
   type AuthOptions,
 } from './auth/session';

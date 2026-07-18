@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setConfig = vi.fn();
-const getExchangeTickersHour = vi.fn();
-const getExchangeKlinesHour = vi.fn();
+const apiDownloadTickers = vi.fn();
+const apiDownloadKlines = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
-  postStrategy: vi.fn(),
-  getStrategyStatus: vi.fn(),
-  prepareBacktesting: vi.fn(),
-  getPreparationStatus: vi.fn(),
-  executeBacktesting: vi.fn(),
-  getExecutionResult: vi.fn(),
-  cancelExecution: vi.fn(),
-  getExchangeTickersHour,
-  getExchangeKlinesHour,
+  compileStrategy: vi.fn(),
+  getStrategy: vi.fn(),
+  prepareBacktest: vi.fn(),
+  getPrepareStatus: vi.fn(),
+  executeBacktest: vi.fn(),
+  getBacktestResult: vi.fn(),
+  cancelBacktest: vi.fn(),
+  downloadTickers: apiDownloadTickers,
+  downloadKlines: apiDownloadKlines,
 }));
 
 function ok<T>(data: T) {
@@ -30,13 +30,13 @@ function err(payload: unknown, status = 404) {
 
 describe('QTSurfer.tickers / klines', () => {
   beforeEach(() => {
-    getExchangeTickersHour.mockReset();
-    getExchangeKlinesHour.mockReset();
+    apiDownloadTickers.mockReset();
+    apiDownloadKlines.mockReset();
   });
 
   it('tickers() defaults to lastra and returns the Blob', async () => {
     const blob = new Blob(['LASTRA'], { type: 'application/vnd.lastra' });
-    getExchangeTickersHour.mockResolvedValue(ok(blob));
+    apiDownloadTickers.mockResolvedValue(ok(blob));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
@@ -48,15 +48,15 @@ describe('QTSurfer.tickers / klines', () => {
     });
 
     expect(out).toBe(blob);
-    expect(getExchangeTickersHour).toHaveBeenCalledTimes(1);
-    expect(getExchangeTickersHour).toHaveBeenCalledWith({
+    expect(apiDownloadTickers).toHaveBeenCalledTimes(1);
+    expect(apiDownloadTickers).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10' },
     });
   });
 
   it('tickers() forwards format=parquet when requested', async () => {
-    getExchangeTickersHour.mockResolvedValue(ok(new Blob(['ok'])));
+    apiDownloadTickers.mockResolvedValue(ok(new Blob(['ok'])));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
@@ -68,14 +68,14 @@ describe('QTSurfer.tickers / klines', () => {
       format: 'parquet',
     });
 
-    expect(getExchangeTickersHour).toHaveBeenCalledWith({
+    expect(apiDownloadTickers).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10', format: 'parquet' },
     });
   });
 
-  it('klines() routes to getExchangeKlinesHour', async () => {
-    getExchangeKlinesHour.mockResolvedValue(ok(new Blob(['ok'])));
+  it('klines() routes to downloadKlines', async () => {
+    apiDownloadKlines.mockResolvedValue(ok(new Blob(['ok'])));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
@@ -87,14 +87,14 @@ describe('QTSurfer.tickers / klines', () => {
       format: 'parquet',
     });
 
-    expect(getExchangeKlinesHour).toHaveBeenCalledWith({
+    expect(apiDownloadKlines).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10', format: 'parquet' },
     });
   });
 
   it('throws QTSDownloadError on a 404', async () => {
-    getExchangeTickersHour.mockResolvedValue(
+    apiDownloadTickers.mockResolvedValue(
       err({ code: 'NOT_FOUND', message: 'hour not backfilled' }, 404),
     );
 

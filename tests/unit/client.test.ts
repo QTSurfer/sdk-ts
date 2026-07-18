@@ -4,13 +4,13 @@ const setConfig = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
-  postStrategy: vi.fn(),
-  getStrategyStatus: vi.fn(),
-  prepareBacktesting: vi.fn(),
-  getPreparationStatus: vi.fn(),
-  executeBacktesting: vi.fn(),
-  getExecutionResult: vi.fn(),
-  cancelExecution: vi.fn(),
+  compileStrategy: vi.fn(),
+  getStrategy: vi.fn(),
+  prepareBacktest: vi.fn(),
+  getPrepareStatus: vi.fn(),
+  executeBacktest: vi.fn(),
+  getBacktestResult: vi.fn(),
+  cancelBacktest: vi.fn(),
 }));
 
 describe('QTSurfer client', () => {

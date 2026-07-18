@@ -1,5 +1,52 @@
 # @qtsurfer/sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- Bump `@qtsurfer/api-client` to `^0.5.0` (API spec 0.99.1), which renames all 16 generated
+  operations for consistency (no request/response shape, field, or endpoint changes):
+
+  | Old                       | New                      |
+  | ------------------------- | ------------------------ |
+  | `auth`                    | `authenticate`           |
+  | `getExchanges`            | `listExchanges`          |
+  | `getInstruments`          | `listInstruments`        |
+  | `getSegmentInstruments`   | `listSegmentInstruments` |
+  | `getExchangeTickersHour`  | `downloadTickers`        |
+  | `getExchangeKlinesHour`   | `downloadKlines`         |
+  | `postStrategy`            | `compileStrategy`        |
+  | `getStrategyStatus`       | `getStrategy`            |
+  | `prepareBacktesting`      | `prepareBacktest`        |
+  | `getPreparationStatus`    | `getPrepareStatus`       |
+  | `executeSweepBacktesting` | `executeSweep`           |
+  | `getExecuteSweepResult`   | `getSweepResult`         |
+  | `cancelExecuteSweep`      | `cancelSweep`            |
+  | `executeBacktesting`      | `executeBacktest`        |
+  | `cancelExecution`         | `cancelBacktest`         |
+  | `getExecutionResult`      | `getBacktestResult`      |
+
+  All internal call sites in `@qtsurfer/sdk`'s workflows (`backtest.ts`, `downloads.ts`,
+  `auth/session.ts`) now call the renamed generated functions. `QTSurfer` and
+  `AuthenticatedClient` keep their existing public method names (`backtest`, `tickers`,
+  `klines`) — those already read naturally and don't mirror an operationId 1:1.
+
+  **Breaking:** the SDK's own `auth(apikey?, opts?)` helper is renamed to
+  `authenticate(apikey?, opts?)` for end-to-end consistency with the renamed `authenticate`
+  operation. Same signature and behavior — update the import and call site:
+
+  ```diff
+  -import { auth } from '@qtsurfer/sdk';
+  -const qts = await auth();
+  +import { authenticate } from '@qtsurfer/sdk';
+  +const qts = await authenticate();
+  ```
+
+  The bumped `@qtsurfer/api-client` also adds the `executeSweep` / `getSweepResult` /
+  `cancelSweep` parameter-sweep operations. The SDK does not yet expose a sweep workflow
+  method, so this part of the bump is additive only with no behavioral change to
+  `@qtsurfer/sdk`'s public API.
+
 ## 0.5.0
 
 ### Minor Changes

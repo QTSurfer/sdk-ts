@@ -24,12 +24,12 @@ One call: API key in, ready-to-use session out. JWT refresh on 401 is handled
 for you.
 
 ```ts
-import { auth } from '@qtsurfer/sdk';
+import { authenticate } from '@qtsurfer/sdk';
 import { readFileSync } from 'node:fs';
 
 // Reads QTSURFER_APIKEY from env when no argument is passed.
-const qts = await auth();
-// Or: const qts = await auth('ak_...');
+const qts = await authenticate();
+// Or: const qts = await authenticate('ak_...');
 
 const result = await qts.backtest({
   strategy: readFileSync('./MyStrategy.java', 'utf8'),
@@ -46,9 +46,9 @@ console.log('Trades:', result.totalTrades);
 
 ### Environment
 
-| Variable           | Purpose                                            |
-| ------------------ | -------------------------------------------------- |
-| `QTSURFER_APIKEY`  | API key consumed by `auth()` when no arg is passed |
+| Variable           | Purpose                                                     |
+| ------------------ | ------------------------------------------------------------ |
+| `QTSURFER_APIKEY`  | API key consumed by `authenticate()` when no arg is passed   |
 
 ### Pluggable token storage
 
@@ -56,7 +56,7 @@ Tokens are kept in memory by default. Implement `TokenStore` to swap in
 browser storage, a file, or a secret manager:
 
 ```ts
-import { auth, type TokenStore, type AuthTokenResponse } from '@qtsurfer/sdk';
+import { authenticate, type TokenStore, type AuthTokenResponse } from '@qtsurfer/sdk';
 
 const browserStore: TokenStore = {
   load: () => JSON.parse(localStorage.getItem('qts.jwt') ?? 'null'),
@@ -64,10 +64,10 @@ const browserStore: TokenStore = {
   clear: () => localStorage.removeItem('qts.jwt'),
 };
 
-const qts = await auth(undefined, { store: browserStore });
+const qts = await authenticate(undefined, { store: browserStore });
 ```
 
-`auth()` also accepts `{ baseUrl, fetch }` for staging, custom HTTP
+`authenticate()` also accepts `{ baseUrl, fetch }` for staging, custom HTTP
 transports, or a Node-`fetch` polyfill in legacy runtimes.
 
 ### Lower-level: hand-managed JWT
@@ -159,7 +159,7 @@ try {
 
 ## Cancellation
 
-Pass an `AbortSignal`. The SDK stops polling immediately and, if execution has already started server-side, best-effort calls `cancelExecution` on the QTSurfer API.
+Pass an `AbortSignal`. The SDK stops polling immediately and, if execution has already started server-side, best-effort calls `cancelBacktest` on the QTSurfer API.
 
 ```ts
 const controller = new AbortController();

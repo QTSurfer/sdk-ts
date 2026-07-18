@@ -1,5 +1,5 @@
 import {
-  auth as apiAuth,
+  authenticate as apiAuth,
   client as apiClient,
   type AuthTokenResponse,
 } from '@qtsurfer/api-client';
@@ -32,7 +32,7 @@ export interface AuthOptions {
 /**
  * Authenticated SDK session.
  *
- * Returned by {@link auth}. Wraps the underlying api-client, owns a JWT
+ * Returned by {@link authenticate}. Wraps the underlying api-client, owns a JWT
  * (in memory by default, or in the provided {@link TokenStore}), and
  * transparently re-exchanges the apikey for a fresh JWT on 401.
  *
@@ -71,7 +71,7 @@ export class AuthenticatedClient {
       });
       if (error || !data) {
         throw new QTSAuthError(
-          `auth() failed: HTTP ${response.status}`,
+          `authenticate() failed: HTTP ${response.status}`,
           error,
         );
       }
@@ -157,14 +157,14 @@ export class AuthenticatedClient {
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.
  */
-export async function auth(
+export async function authenticate(
   apikey?: string,
   opts: AuthOptions = {},
 ): Promise<AuthenticatedClient> {
   const resolved = apikey ?? readEnvApikey();
   if (!resolved) {
     throw new QTSAuthError(
-      `auth() requires an apikey (argument or ${APIKEY_ENV_VAR} env var)`,
+      `authenticate() requires an apikey (argument or ${APIKEY_ENV_VAR} env var)`,
     );
   }
   const session = new AuthenticatedClient(resolved, opts);

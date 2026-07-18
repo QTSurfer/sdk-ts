@@ -1,6 +1,6 @@
 import {
-  getExchangeKlinesHour,
-  getExchangeTickersHour,
+  downloadKlines as apiDownloadKlines,
+  downloadTickers as apiDownloadTickers,
 } from '@qtsurfer/api-client';
 import { QTSDownloadError } from '../errors';
 
@@ -27,7 +27,7 @@ export interface DownloadParams {
  */
 export async function downloadTickers(params: DownloadParams): Promise<Blob> {
   const { exchangeId, base, quote, hour, format } = params;
-  const { data, error, response } = await getExchangeTickersHour({
+  const { data, error, response } = await apiDownloadTickers({
     path: { exchangeId, base, quote },
     query: { hour, ...(format ? { format } : {}) },
   });
@@ -49,7 +49,7 @@ export async function downloadTickers(params: DownloadParams): Promise<Blob> {
  */
 export async function downloadKlines(params: DownloadParams): Promise<Blob> {
   const { exchangeId, base, quote, hour, format } = params;
-  const { data, error, response } = await getExchangeKlinesHour({
+  const { data, error, response } = await apiDownloadKlines({
     path: { exchangeId, base, quote },
     query: { hour, ...(format ? { format } : {}) },
   });

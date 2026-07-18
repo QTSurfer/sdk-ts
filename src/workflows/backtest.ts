@@ -1,11 +1,11 @@
 import {
-  cancelExecution,
-  executeBacktesting,
-  getExecutionResult,
-  getPreparationStatus,
-  getStrategyStatus,
-  postStrategy,
-  prepareBacktesting,
+  cancelBacktest,
+  executeBacktest,
+  getBacktestResult,
+  getPrepareStatus,
+  getStrategy,
+  compileStrategy as apiCompileStrategy,
+  prepareBacktest,
   type DataSourceType,
   type ResultMap,
 } from '@qtsurfer/api-client';
@@ -60,7 +60,7 @@ export interface BacktestProgress {
 }
 
 export interface BacktestOptions {
-  /** Abort the workflow. Cancels the current poll and calls `cancelExecution` server-side if execution has started. */
+  /** Abort the workflow. Cancels the current poll and calls `cancelBacktest` server-side if execution has started. */
   signal?: AbortSignal;
   /** Called on stage transitions and after each poll with updated progress. */
   onProgress?: (p: BacktestProgress) => void;
@@ -138,7 +138,7 @@ async function compileStrategy(
   policy: IPolicy<ICancellationContext, never>,
   opts: BacktestOptions,
 ): Promise<string> {
-  const { data, error } = await postStrategy({
+  const { data, error } = await apiCompileStrategy({
     body: source,
     headers: { 'X-Compile-Async': true },
     ...(opts.signal ? { signal: opts.signal } : {}),
@@ -159,7 +159,7 @@ async function compileStrategy(
     policy,
     opts,
     async ({ signal }) => {
-      const res = await getStrategyStatus({ path: { strategyId: compileJobId }, signal });
+      const res = await getStrategy({ path: { strategyId: compileJobId }, signal });
       if (res.error) throw new QTSStrategyCompileError('Compile status request failed', res.error);
       if (!res.data) throw new QTSStrategyCompileError('Empty compile status response');
       return res.data;
@@ -184,7 +184,7 @@ async function prepareData(
   policy: IPolicy<ICancellationContext, never>,
   opts: BacktestOptions,
 ): Promise<string> {
-  const { data, error } = await prepareBacktesting({
+  const { data, error } = await prepareBacktest({
     path: { exchangeId: req.exchangeId, type: TICKER },
     body: { instrument: req.instrument, from: req.from, to: req.to },
     ...(opts.signal ? { signal: opts.signal } : {}),
@@ -197,7 +197,7 @@ async function prepareData(
     policy,
     opts,
     async ({ signal }) => {
-      const res = await getPreparationStatus({
+      const res = await getPrepareStatus({
         path: { exchangeId: req.exchangeId, type: TICKER, jobId: prepareJobId },
         signal,
       });
@@ -232,7 +232,7 @@ async function executeStrategy(
   policy: IPolicy<ICancellationContext, never>,
   opts: BacktestOptions,
 ): Promise<BacktestResult> {
-  const { data, error } = await executeBacktesting({
+  const { data, error } = await executeBacktest({
     path: { exchangeId: req.exchangeId, type: TICKER },
     body: {
       prepareJobId,
@@ -251,7 +251,7 @@ async function executeStrategy(
       policy,
       opts,
       async ({ signal }) => {
-        const res = await getExecutionResult({
+        const res = await getBacktestResult({
           path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
           signal,
         });
@@ -276,7 +276,7 @@ async function executeStrategy(
     return finalResult.__result;
   } catch (err) {
     if (err instanceof QTSCanceledError) {
-      await cancelExecution({
+      await cancelBacktest({
         path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
       }).catch(() => undefined);
     }

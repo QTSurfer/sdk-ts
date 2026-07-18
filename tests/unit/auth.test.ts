@@ -2,21 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setConfig = vi.fn();
 const apiAuth = vi.fn();
-const getExchangeTickersHour = vi.fn();
-const getExchangeKlinesHour = vi.fn();
+const apiDownloadTickers = vi.fn();
+const apiDownloadKlines = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
-  auth: apiAuth,
-  postStrategy: vi.fn(),
-  getStrategyStatus: vi.fn(),
-  prepareBacktesting: vi.fn(),
-  getPreparationStatus: vi.fn(),
-  executeBacktesting: vi.fn(),
-  getExecutionResult: vi.fn(),
-  cancelExecution: vi.fn(),
-  getExchangeTickersHour,
-  getExchangeKlinesHour,
+  authenticate: apiAuth,
+  compileStrategy: vi.fn(),
+  getStrategy: vi.fn(),
+  prepareBacktest: vi.fn(),
+  getPrepareStatus: vi.fn(),
+  executeBacktest: vi.fn(),
+  getBacktestResult: vi.fn(),
+  cancelBacktest: vi.fn(),
+  downloadTickers: apiDownloadTickers,
+  downloadKlines: apiDownloadKlines,
 }));
 
 function authOk(token = 'jwt-1') {
@@ -52,12 +52,12 @@ function http401(payload: unknown = { code: 'unauthorized', message: 'expired' }
   };
 }
 
-describe('auth() helper', () => {
+describe('authenticate() helper', () => {
   beforeEach(() => {
     setConfig.mockClear();
     apiAuth.mockReset();
-    getExchangeTickersHour.mockReset();
-    getExchangeKlinesHour.mockReset();
+    apiDownloadTickers.mockReset();
+    apiDownloadKlines.mockReset();
     delete process.env.QTSURFER_APIKEY;
   });
 
@@ -67,9 +67,9 @@ describe('auth() helper', () => {
 
   it('uses the apikey argument when one is passed', async () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-from-arg'));
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
 
-    const session = await auth('ak_explicit');
+    const session = await authenticate('ak_explicit');
 
     expect(apiAuth).toHaveBeenCalledTimes(1);
     expect(apiAuth.mock.calls[0]?.[0]?.headers).toEqual({
@@ -81,9 +81,9 @@ describe('auth() helper', () => {
   it('falls back to QTSURFER_APIKEY env var when no apikey is passed', async () => {
     process.env.QTSURFER_APIKEY = 'ak_from_env';
     apiAuth.mockResolvedValueOnce(authOk());
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
 
-    await auth();
+    await authenticate();
 
     expect(apiAuth.mock.calls[0]?.[0]?.headers).toEqual({
       'X-API-Key': 'ak_from_env',
@@ -93,9 +93,9 @@ describe('auth() helper', () => {
   it('explicit apikey overrides the env var', async () => {
     process.env.QTSURFER_APIKEY = 'ak_from_env';
     apiAuth.mockResolvedValueOnce(authOk());
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
 
-    await auth('ak_explicit');
+    await authenticate('ak_explicit');
 
     expect(apiAuth.mock.calls[0]?.[0]?.headers).toEqual({
       'X-API-Key': 'ak_explicit',
@@ -103,22 +103,22 @@ describe('auth() helper', () => {
   });
 
   it('throws QTSAuthError when neither apikey arg nor env var is set', async () => {
-    const { auth, QTSAuthError } = await import('../../src/index');
+    const { authenticate, QTSAuthError } = await import('../../src/index');
 
-    await expect(auth()).rejects.toBeInstanceOf(QTSAuthError);
+    await expect(authenticate()).rejects.toBeInstanceOf(QTSAuthError);
     expect(apiAuth).not.toHaveBeenCalled();
   });
 
   it('throws QTSAuthError when the initial JWT exchange returns 401', async () => {
     apiAuth.mockResolvedValueOnce(authFail());
-    const { auth, QTSAuthError } = await import('../../src/index');
+    const { authenticate, QTSAuthError } = await import('../../src/index');
 
-    await expect(auth('ak_bad')).rejects.toBeInstanceOf(QTSAuthError);
+    await expect(authenticate('ak_bad')).rejects.toBeInstanceOf(QTSAuthError);
   });
 
   it('saves the token via the provided TokenStore', async () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-saved'));
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
 
     const saved: unknown[] = [];
     const store = {
@@ -129,7 +129,7 @@ describe('auth() helper', () => {
       clear: vi.fn(),
     };
 
-    await auth('ak', { store });
+    await authenticate('ak', { store });
 
     expect(store.load).toHaveBeenCalledTimes(1);
     expect(store.save).toHaveBeenCalledTimes(1);
@@ -162,7 +162,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
   beforeEach(() => {
     setConfig.mockClear();
     apiAuth.mockReset();
-    getExchangeTickersHour.mockReset();
+    apiDownloadTickers.mockReset();
   });
 
   it('refreshes JWT once on 401 then retries the original call', async () => {
@@ -171,11 +171,11 @@ describe('AuthenticatedClient refresh-on-401', () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-2'));
 
     const blob = new Blob(['LASTRA'], { type: 'application/vnd.lastra' });
-    getExchangeTickersHour.mockResolvedValueOnce(http401());
-    getExchangeTickersHour.mockResolvedValueOnce(ok(blob));
+    apiDownloadTickers.mockResolvedValueOnce(http401());
+    apiDownloadTickers.mockResolvedValueOnce(ok(blob));
 
-    const { auth } = await import('../../src/auth/session');
-    const session = await auth('ak');
+    const { authenticate } = await import('../../src/auth/session');
+    const session = await authenticate('ak');
 
     // Wrap the download to throw on the api-client error, mimicking what
     // the workflow does internally (downloads.ts throws QTSDownloadError
@@ -191,7 +191,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // Two auth calls: initial mint + refresh after 401.
     expect(apiAuth).toHaveBeenCalledTimes(2);
     // Two tickers calls: the 401 and the retry.
-    expect(getExchangeTickersHour).toHaveBeenCalledTimes(2);
+    expect(apiDownloadTickers).toHaveBeenCalledTimes(2);
     // The Authorization header for the retry must carry the new JWT.
     const lastSetConfig = setConfig.mock.calls.at(-1)?.[0];
     expect(lastSetConfig?.headers?.Authorization).toBe('Bearer jwt-2');
@@ -201,12 +201,12 @@ describe('AuthenticatedClient refresh-on-401', () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-1'));
     apiAuth.mockResolvedValueOnce(authOk('jwt-2'));
 
-    getExchangeTickersHour.mockResolvedValueOnce(http401());
-    getExchangeTickersHour.mockResolvedValueOnce(http401());
+    apiDownloadTickers.mockResolvedValueOnce(http401());
+    apiDownloadTickers.mockResolvedValueOnce(http401());
 
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
     const { QTSDownloadError } = await import('../../src/errors');
-    const session = await auth('ak');
+    const session = await authenticate('ak');
 
     await expect(
       session.tickers({
@@ -220,20 +220,20 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // One mint + one refresh.
     expect(apiAuth).toHaveBeenCalledTimes(2);
     // Two attempts: original + one retry, then surface.
-    expect(getExchangeTickersHour).toHaveBeenCalledTimes(2);
+    expect(apiDownloadTickers).toHaveBeenCalledTimes(2);
   });
 
   it('does not retry non-401 errors', async () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-1'));
-    getExchangeTickersHour.mockResolvedValueOnce({
+    apiDownloadTickers.mockResolvedValueOnce({
       data: undefined,
       error: { message: 'gone' },
       response: { status: 404 } as Response,
     });
 
-    const { auth } = await import('../../src/auth/session');
+    const { authenticate } = await import('../../src/auth/session');
     const { QTSDownloadError } = await import('../../src/errors');
-    const session = await auth('ak');
+    const session = await authenticate('ak');
 
     await expect(
       session.tickers({
@@ -246,6 +246,6 @@ describe('AuthenticatedClient refresh-on-401', () => {
 
     // Only the initial mint — no refresh.
     expect(apiAuth).toHaveBeenCalledTimes(1);
-    expect(getExchangeTickersHour).toHaveBeenCalledTimes(1);
+    expect(apiDownloadTickers).toHaveBeenCalledTimes(1);
   });
 });

@@ -51,7 +51,7 @@ export class QTSDownloadError extends QTSError {
 }
 
 /**
- * Thrown by the `auth()` helper when the apikey is missing or the JWT
+ * Thrown by the `authenticate()` helper when the apikey is missing or the JWT
  * exchange fails (HTTP 401 from `POST /v1/auth/token`, etc.).
  */
 export class QTSAuthError extends QTSError {
