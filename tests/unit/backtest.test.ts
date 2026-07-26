@@ -202,6 +202,44 @@ describe('backtest workflow', () => {
     );
   });
 
+  it('keeps polling through a 202 and resolves once the result becomes readable', async () => {
+    // The API answers 202 with an empty body when a job is known but its result is not readable
+    // yet. It is a 2xx, so the generated client reports no error and `data` is `{}` — the loop
+    // must treat that as "ask again", never as a finished job with no results. Getting this
+    // wrong is quiet rather than loud: the caller receives an empty result for a backtest that
+    // actually completed, and only notices when reading a field that should be there.
+    compileStrategy.mockResolvedValue(ok({ jobId: 'compile-1' }));
+    getStrategy.mockResolvedValue(
+      ok({ status: 'Completed', strategyId: 'strategy-abc' }),
+    );
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    getPrepareStatus.mockResolvedValue(
+      ok({ status: 'Completed', size: 1, completed: 1 }),
+    );
+    executeBacktest.mockResolvedValue(ok({ jobId: 'exec-202' }));
+
+    let calls = 0;
+    getBacktestResult.mockImplementation(async () => {
+      calls += 1;
+      // Two 202s (empty body, no state at all), then the real result.
+      if (calls <= 2) return ok({});
+      return ok({
+        state: { status: 'Completed', size: 1, completed: 1 },
+        results: { strategyId: 'strategy-abc', instrument: 'BTC/USDT', pnlTotal: 7 },
+      });
+    });
+
+    const { backtest } = await import('../../src/workflows/backtest');
+    const result = await backtest(REQ, { pollIntervalMs: 1, maxPollIntervalMs: 2 });
+
+    expect(calls).toBeGreaterThanOrEqual(3);
+    expect(result).toEqual({
+      strategyId: 'strategy-abc',
+      instrument: 'BTC/USDT',
+      pnlTotal: 7,
+    });
+  });
+
   it('honors AbortSignal and triggers server-side cancelBacktest when aborted during execute', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));

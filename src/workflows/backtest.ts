@@ -80,6 +80,12 @@ type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed';
  * Normalize the backend job status to a stable lowercase form so we can
  * reason about it regardless of OpenAPI spec drift (the live API sometimes
  * returns lowercase values like `queued` / `completed` / `failed`).
+ *
+ * Only the three terminal statuses end a poll loop. Everything else — including a
+ * **missing** status — means "keep asking": the API answers `202` with an empty body when a
+ * job is known but its result is not readable yet, and that response carries no state at all.
+ * Mapping absent to in-progress is what makes a 202 continue the loop under its timeout
+ * instead of being mistaken for a finished job with no data.
  */
 type NormalizedStatus = 'in-progress' | 'completed' | 'failed' | 'aborted';
 
@@ -90,7 +96,7 @@ function normalizeStatus(raw: unknown): NormalizedStatus {
   if (value === 'aborted' || value === 'cancelled' || value === 'canceled') {
     return 'aborted';
   }
-  // new / started / queued / running / anything else → still running
+  // new / started / queued / running / absent (202) / anything else → still running
   return 'in-progress';
 }
 
@@ -257,6 +263,9 @@ async function executeStrategy(
         });
         if (res.error) throw new QTSExecutionError('Execution result request failed', res.error);
         if (!res.data) throw new QTSExecutionError('Empty execution result response');
+        // A 202 carries an empty body: no `state`, so the spread yields an undefined status and
+        // the retry predicate keeps polling. That is the intended handling, not a coincidence —
+        // see normalizeStatus. Do not "fix" this into a throw or an early return of the result.
         return { ...res.data.state, __result: res.data.results };
       },
       (r) => {
