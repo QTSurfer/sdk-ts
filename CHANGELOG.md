@@ -1,5 +1,23 @@
 # @qtsurfer/sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- [#3](https://github.com/QTSurfer/sdk-ts/pull/3) [`7d6bc6d`](https://github.com/QTSurfer/sdk-ts/commit/7d6bc6ded5c193ea50cfefb4043a893a236ba971) Thanks [@mrmx](https://github.com/mrmx)! - Bump `@qtsurfer/api-client` to `^0.6.0` (API spec 0.99.2), and pin that a `202` on the
+  execute-result poll keeps the loop running.
+
+  The client bump is type-only for consumers of this SDK: `GetBacktestResultResponse` widens to a
+  union with the 202's empty-object type, which the SDK absorbs internally. Its own public surface
+  is unchanged.
+
+  The API answers `202` with an empty body when a job is known but its result is not readable yet.
+  Because it is a 2xx, the generated client reports no error and `data` is `{}` — a response with no
+  `state` at all. The poll already handled this correctly, since an absent status normalizes to
+  "in progress", but nothing said so: a reasonable refactor (throwing on a missing `state`, or
+  returning the empty result early) would have silently turned a completed backtest into an empty
+  one. `normalizeStatus` now documents the rule and a test drives two `202`s before the real result.
+
 ## 0.6.0
 
 ### Minor Changes
