@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "tsconfig": "tsconfig.test.json",
+  "out": "docs",
+  "treatWarningsAsErrors": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "gitRevision": "main",
+  "externalSymbolLinkMappings": {
+    "typescript": {
+      "Blob": "https://developer.mozilla.org/en-US/docs/Web/API/Blob"
+    }
+  }
+}

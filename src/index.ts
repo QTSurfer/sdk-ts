@@ -1,3 +1,9 @@
+/**
+ * Public surface of `@qtsurfer/sdk`. Everything a consumer needs — the
+ * `QTSurfer` client, the `authenticate()` session helper, workflow types,
+ * and the `QTSError` hierarchy — is re-exported from here; see each
+ * symbol's own doc comment for behavior and retry semantics.
+ */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export {
   QTSError,

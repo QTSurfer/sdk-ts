@@ -3,7 +3,6 @@ import {
   executeBacktest,
   getBacktestResult,
   getPrepareStatus,
-  getStrategy,
   compileStrategy as apiCompileStrategy,
   prepareBacktest,
   type DataSourceType,
@@ -43,8 +42,16 @@ export interface BacktestRequest {
   storeSignals?: boolean;
 }
 
+/**
+ * Resolved value of the backtest workflow (see {@link QTSurfer.backtest}).
+ * Alias for api-client's `ResultMap` — always includes core fields
+ * (`hostName`, `iops`, `instrument`); yield metrics (`pnlTotal`,
+ * `totalTrades`, `equityCurve`, etc.) are only present once the strategy
+ * has emitted at least one trade.
+ */
 export type BacktestResult = ResultMap;
 
+/** The three sequential stages {@link QTSurfer.backtest} moves through, in order. */
 export type BacktestStage = 'compiling' | 'preparing' | 'executing';
 
 export interface BacktestProgress {
@@ -106,9 +113,9 @@ export async function backtest(
 ): Promise<BacktestResult> {
   const policy = buildStagePolicy(opts);
 
-  // 1. Compile strategy (async mode)
+  // 1. Compile strategy (single synchronous request)
   opts.onProgress?.({ stage: 'compiling' });
-  const strategyId = await compileStrategy(req.strategy, policy, opts);
+  const strategyId = await compileStrategy(req.strategy, opts);
 
   // 2. Prepare data
   opts.onProgress?.({ stage: 'preparing' });
@@ -139,50 +146,33 @@ function buildStagePolicy(opts: BacktestOptions): IPolicy<ICancellationContext, 
     : retryPolicy;
 }
 
-async function compileStrategy(
-  source: string,
-  policy: IPolicy<ICancellationContext, never>,
-  opts: BacktestOptions,
-): Promise<string> {
-  const { data, error } = await apiCompileStrategy({
+/**
+ * Compile in a single request: the API answers synchronously with the `strategyId`,
+ * so there is no job to poll. A compile error arrives here as a `400`, not on a later poll.
+ */
+async function compileStrategy(source: string, opts: BacktestOptions): Promise<string> {
+  const { data, error, response } = await apiCompileStrategy({
     body: source,
-    headers: { 'X-Compile-Async': true },
     ...(opts.signal ? { signal: opts.signal } : {}),
   });
-  if (error) throw new QTSStrategyCompileError('Strategy submission failed', error);
-  if (!data) throw new QTSStrategyCompileError('Empty response from strategy endpoint');
 
-  // Sync mode returns { strategyId }; async mode returns { jobId }.
-  if ('strategyId' in data && data.strategyId) {
-    return data.strategyId;
+  if (error) {
+    // A 429 means the platform is holding too many compilations at once and the source was never
+    // judged — worth separating from the 400 that says the source itself does not compile.
+    // Read the status inside this branch and optionally: a transport failure carries no response,
+    // and dereferencing one would raise a TypeError that buries the error actually being reported.
+    if (response?.status === 429) {
+      throw new QTSStrategyCompileError(
+        'Strategy was not compiled, too many compilations in flight; retry later',
+        error,
+      );
+    }
+    throw new QTSStrategyCompileError('Strategy compilation failed', error);
   }
-  if (!('jobId' in data) || !data.jobId) {
-    throw new QTSStrategyCompileError('Missing jobId/strategyId in compile response');
+  if (!data?.strategyId) {
+    throw new QTSStrategyCompileError('Compile response missing strategyId');
   }
-
-  const compileJobId = data.jobId;
-  const status = await runStage(
-    policy,
-    opts,
-    async ({ signal }) => {
-      const res = await getStrategy({ path: { strategyId: compileJobId }, signal });
-      if (res.error) throw new QTSStrategyCompileError('Compile status request failed', res.error);
-      if (!res.data) throw new QTSStrategyCompileError('Empty compile status response');
-      return res.data;
-    },
-  );
-
-  const norm = normalizeStatus(status.status);
-  if (norm === 'failed') {
-    throw new QTSStrategyCompileError(status.statusDetail ?? 'Strategy compilation failed');
-  }
-  if (norm === 'aborted') {
-    throw new QTSCanceledError('Strategy compilation aborted');
-  }
-  if (!status.strategyId) {
-    throw new QTSStrategyCompileError('Compile completed without a strategyId');
-  }
-  return status.strategyId;
+  return data.strategyId;
 }
 
 async function prepareData(

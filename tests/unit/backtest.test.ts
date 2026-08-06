@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const compileStrategy = vi.fn();
-const getStrategy = vi.fn();
 const prepareBacktest = vi.fn();
 const getPrepareStatus = vi.fn();
 const executeBacktest = vi.fn();
@@ -11,7 +10,6 @@ const cancelBacktest = vi.fn();
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig: vi.fn() },
   compileStrategy,
-  getStrategy,
   prepareBacktest,
   getPrepareStatus,
   executeBacktest,
@@ -28,17 +26,16 @@ const REQ = {
 };
 
 function ok<T>(data: T) {
-  return { data, error: undefined };
+  return { data, error: undefined, response: { status: 200 } as Response };
 }
-function err(e: unknown) {
-  return { data: undefined, error: e };
+function err(e: unknown, status = 400) {
+  return { data: undefined, error: e, response: { status } as Response };
 }
 
 describe('backtest workflow', () => {
   beforeEach(() => {
     [
       compileStrategy,
-      getStrategy,
       prepareBacktest,
       getPrepareStatus,
       executeBacktest,
@@ -50,10 +47,7 @@ describe('backtest workflow', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('runs the full happy path and returns ResultMap', async () => {
-    compileStrategy.mockResolvedValue(ok({ jobId: 'compile-1' }));
-    getStrategy.mockResolvedValue(
-      ok({ status: 'Completed', strategyId: 'strategy-abc' }),
-    );
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 100, completed: 100 }),
@@ -101,7 +95,7 @@ describe('backtest workflow', () => {
     expect(stages).toContain('executing');
   });
 
-  it('uses sync strategyId shortcut when compile returns 200', async () => {
+  it('compiles in a single request, with no status polling', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
     getPrepareStatus.mockResolvedValue(
@@ -118,14 +112,15 @@ describe('backtest workflow', () => {
     const { backtest } = await import('../../src/workflows/backtest');
     const result = await backtest(REQ, { pollIntervalMs: 1 });
 
-    expect(getStrategy).not.toHaveBeenCalled();
+    expect(compileStrategy).toHaveBeenCalledTimes(1);
     expect(result.strategyId).toBe('strategy-sync');
   });
 
-  it('throws QTSStrategyCompileError when compilation status is Failed', async () => {
-    compileStrategy.mockResolvedValue(ok({ jobId: 'compile-1' }));
-    getStrategy.mockResolvedValue(
-      ok({ status: 'Failed', statusDetail: 'syntax error line 4' }),
+  it('reports a 429 as not compiled, not as a compilation failure', async () => {
+    // The source was never judged — the platform is holding too many compilations at once.
+    // Wording it like a 400 would send the caller looking for a syntax error that is not there.
+    compileStrategy.mockResolvedValue(
+      err({ code: 429, message: 'too many compilations in flight' }, 429),
     );
 
     const { backtest } = await import('../../src/workflows/backtest');
@@ -135,15 +130,12 @@ describe('backtest workflow', () => {
       QTSStrategyCompileError,
     );
     await expect(backtest(REQ, { pollIntervalMs: 1 })).rejects.toMatchObject({
-      message: expect.stringContaining('syntax error'),
+      message: expect.stringContaining('retry later'),
     });
   });
 
   it('throws QTSPreparationError when prepare status is Failed', async () => {
-    compileStrategy.mockResolvedValue(ok({ jobId: 'compile-1' }));
-    getStrategy.mockResolvedValue(
-      ok({ status: 'Completed', strategyId: 'strategy-abc' }),
-    );
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
     getPrepareStatus.mockResolvedValue(
       ok({
@@ -208,10 +200,7 @@ describe('backtest workflow', () => {
     // must treat that as "ask again", never as a finished job with no results. Getting this
     // wrong is quiet rather than loud: the caller receives an empty result for a backtest that
     // actually completed, and only notices when reading a field that should be there.
-    compileStrategy.mockResolvedValue(ok({ jobId: 'compile-1' }));
-    getStrategy.mockResolvedValue(
-      ok({ status: 'Completed', strategyId: 'strategy-abc' }),
-    );
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),

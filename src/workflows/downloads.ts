@@ -8,12 +8,15 @@ import { QTSDownloadError } from '../errors';
 export type DownloadFormat = 'lastra' | 'parquet';
 
 export interface DownloadParams {
+  /** Exchange id, e.g. `binance`. */
   exchangeId: string;
+  /** Base asset of the instrument, e.g. `BTC`. */
   base: string;
+  /** Quote asset of the instrument, e.g. `USDT`. */
   quote: string;
   /** Hour selector in `YYYY-MM-DDTHH` (UTC). */
   hour: string;
-  /** Defaults to {@code 'lastra'}. */
+  /** Defaults to `'lastra'`. */
   format?: DownloadFormat;
 }
 

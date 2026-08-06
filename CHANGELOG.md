@@ -1,5 +1,26 @@
 # @qtsurfer/sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- Compiling a strategy is now a single request.
+
+  The API compiles synchronously and answers with the `strategyId`, so `backtest()` no longer submits
+  with `X-Compile-Async` and then polls `GET /strategy/{jobId}` until the job completes. Nothing
+  changes for callers — the same `compiling` progress event fires and the same result comes back —
+  but the stage resolves in one round trip, and a compile error surfaces immediately instead of on a
+  later poll.
+
+  A `429` from the compile endpoint is now reported as its own condition: the platform is holding too
+  many compilations at once and the source was never judged. Wording it like the `400` would send you
+  looking for a syntax error that is not there.
+
+  Bumps `@qtsurfer/api-client` to `^0.7.0`, which drops the `X-Compile-Async` header and the
+  `202`/`AcceptedJob` branch from `compileStrategy`, and re-types `getStrategy` to the new
+  `StrategyState` (`validation`: `not_validated` / `pending` / `passed` / `failed`) — a strategy's
+  validation verdict, no longer a compile job status. `getStrategy` is not used by this SDK.
+
 ## 0.6.1
 
 ### Patch Changes

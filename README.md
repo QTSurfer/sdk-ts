@@ -88,7 +88,7 @@ const qts = new QTSurfer({
 
 Orchestrates the full four-step workflow that the raw API exposes:
 
-1. **Compile** the strategy (`POST /strategy` in async mode) and poll `GET /strategy/{id}` until `Completed`.
+1. **Compile** the strategy (`POST /strategy`), which answers synchronously with the `strategyId`.
 2. **Prepare** the data range (`POST /backtest/{exchange}/ticker/prepare`) and poll until `Completed`.
 3. **Execute** the backtest (`POST /backtest/{exchange}/ticker/execute`) and poll `GET /backtest/.../execute/{jobId}` until `Completed`.
 4. Return the `ResultMap` (`pnlTotal`, `totalTrades`, `sharpeRatio`, `signalsUrl`, …).

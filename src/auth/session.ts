@@ -134,14 +134,24 @@ export class AuthenticatedClient {
 
   // ---- Workflow surface (mirrors QTSurfer) ----
 
+  /**
+   * Run a backtest end-to-end (compile → prepare → execute), sending the
+   * currently cached token (minting one first if none is cached). Unlike
+   * `tickers()`/`klines()`, a `401` here is not auto-retried: the underlying
+   * stage errors carry no HTTP status, so a token that expires mid-backtest
+   * surfaces as `QTSPreparationError`/`QTSExecutionError` rather than
+   * triggering a refresh.
+   */
   backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
     return this.withRefreshOn401(() => runBacktest(req, opts));
   }
 
+  /** Download one hour of raw tickers. Refreshes the token once on `401` before retrying. */
   tickers(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadTickers(args));
   }
 
+  /** Download one hour of klines. Refreshes the token once on `401` before retrying. */
   klines(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadKlines(args));
   }
