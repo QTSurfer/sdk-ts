@@ -45,3 +45,31 @@ jobs:
             exit 0
           fi
           npm run test:integration
+
+  docs:
+    needs: unit
+    runs-on: ubuntu-latest
+    # Only tagged versions get published, so the site always describes a release
+    # rather than whatever main happens to be.
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run docs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v4
