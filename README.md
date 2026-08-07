@@ -3,6 +3,7 @@
 <p align="center">
   <a href="https://github.com/QTSurfer/sdk-ts/actions/workflows/ci.yml"><img src="https://github.com/QTSurfer/sdk-ts/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.npmjs.com/package/@qtsurfer/sdk"><img src="https://img.shields.io/npm/v/@qtsurfer/sdk" alt="npm"></a>
+  <a href="https://qtsurfer.github.io/sdk-ts/"><img src="https://img.shields.io/badge/docs-typedoc-blue" alt="TypeDoc"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
