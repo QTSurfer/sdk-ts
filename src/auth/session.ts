@@ -27,6 +27,12 @@ import {
   type StrategyState,
   type StrategyValidation,
 } from '../workflows/strategies';
+import {
+  sweep as runSweep,
+  type Sweep,
+  type SweepOptions,
+  type SweepRequest,
+} from '../workflows/sweep';
 import type { DownloadHourArgs } from '../client';
 import { InMemoryTokenStore, type TokenStore } from './tokenStore';
 
@@ -159,6 +165,28 @@ export class AuthenticatedClient {
     return this.withRefreshOn401(() => runBacktest(req, opts));
   }
 
+  /**
+   * Run the full compile → prepare → executeSweep pipeline and resolve once the
+   * platform has accepted the sweep, handing back a {@link Sweep} that keeps
+   * polling the leaderboard in the background. See {@link QTSurfer.sweep} for
+   * why the sweep is one call rather than composable stages, and
+   * {@link Sweep.result} for how to read what it found.
+   *
+   * The currently cached token is sent (minting one first if none is cached),
+   * but as with `backtest()` a `401` here is **not** auto-retried: the
+   * underlying stage errors carry no HTTP status, so a token that expires
+   * mid-pipeline surfaces as `QTSPreparationError`/`QTSExecutionError` rather
+   * than triggering a refresh.
+   *
+   * The background leaderboard poll and {@link Sweep.sensitivity} sit outside
+   * the policy for a second, independent reason: both run after this promise
+   * has already resolved, so a token that expires while a sweep is in flight
+   * surfaces on {@link Sweep.result} whatever the stage errors carry.
+   */
+  sweep(req: SweepRequest, opts?: SweepOptions): Promise<Sweep> {
+    return this.withRefreshOn401(() => runSweep(req, opts));
+  }
+
   /** Download one hour of raw tickers. Refreshes the token once on `401` before retrying. */
   tickers(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadTickers(args));
@@ -218,7 +246,7 @@ export class AuthenticatedClient {
  * If `apikey` is omitted, the SDK reads `QTSURFER_APIKEY` from the
  * environment. The returned {@link AuthenticatedClient} caches the JWT,
  * refreshes it on 401, and exposes the same surface as `QTSurfer`
- * (`backtest`, `tickers`, `klines`, `exchanges`, `instruments`,
+ * (`backtest`, `sweep`, `tickers`, `klines`, `exchanges`, `instruments`,
  * `validateStrategy`, `strategy`).
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.

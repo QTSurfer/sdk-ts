@@ -15,7 +15,14 @@
     "heyapi",
     "openapi",
     "Lastra",
-    "iops"
+    "iops",
+    "Sharpe",
+    "sortino",
+    "Sortino",
+    "maxdd",
+    "pbo",
+    "lhs",
+    "hypercube"
   ],
   "ignorePaths": [
     "node_modules",

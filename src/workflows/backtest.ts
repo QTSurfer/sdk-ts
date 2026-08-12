@@ -2,30 +2,20 @@ import {
   cancelBacktest,
   executeBacktest,
   getBacktestResult,
-  getPrepareStatus,
-  compileStrategy as apiCompileStrategy,
-  prepareBacktest,
-  type DataSourceType,
   type ResultMap,
 } from '@qtsurfer/api-client';
+import { QTSCanceledError, QTSExecutionError } from '../errors';
 import {
-  ExponentialBackoff,
-  TaskCancelledError,
-  TimeoutStrategy,
-  handleWhenResult,
-  retry,
-  timeout,
-  wrap,
-  type IPolicy,
-  type ICancellationContext,
-} from 'cockatiel';
+  buildStagePolicy,
+  normalizeStatus,
+  runStage,
+  type StagePolicy,
+} from '../internal/polling';
 import {
-  QTSCanceledError,
-  QTSExecutionError,
-  QTSPreparationError,
-  QTSStrategyCompileError,
-  QTSTimeoutError,
-} from '../errors';
+  TICKER,
+  compileStrategySource,
+  prepareDataset,
+} from '../internal/preparation';
 
 export interface BacktestRequest {
   /** Strategy source code (Java) */
@@ -79,43 +69,20 @@ export interface BacktestOptions {
   timeoutMs?: number;
 }
 
-const TICKER: DataSourceType = 'ticker';
-
-type JobStatus = 'New' | 'Started' | 'Completed' | 'Aborted' | 'Failed';
-
-/**
- * Normalize the backend job status to a stable lowercase form so we can
- * reason about it regardless of OpenAPI spec drift (the live API sometimes
- * returns lowercase values like `queued` / `completed` / `failed`).
- *
- * Only the three terminal statuses end a poll loop. Everything else — including a
- * **missing** status — means "keep asking": the API answers `202` with an empty body when a
- * job is known but its result is not readable yet, and that response carries no state at all.
- * Mapping absent to in-progress is what makes a 202 continue the loop under its timeout
- * instead of being mistaken for a finished job with no data.
- */
-type NormalizedStatus = 'in-progress' | 'completed' | 'failed' | 'aborted';
-
-function normalizeStatus(raw: unknown): NormalizedStatus {
-  const value = typeof raw === 'string' ? raw.toLowerCase() : '';
-  if (value === 'completed') return 'completed';
-  if (value === 'failed') return 'failed';
-  if (value === 'aborted' || value === 'cancelled' || value === 'canceled') {
-    return 'aborted';
-  }
-  // new / started / queued / running / absent (202) / anything else → still running
-  return 'in-progress';
-}
+/** Initial interval between polls of a single backtest. */
+const DEFAULT_POLL_INTERVAL_MS = 500;
+/** Backoff ceiling for a single backtest. */
+const DEFAULT_MAX_POLL_INTERVAL_MS = 5000;
 
 export async function backtest(
   req: BacktestRequest,
   opts: BacktestOptions = {},
 ): Promise<BacktestResult> {
-  const policy = buildStagePolicy(opts);
+  const policy = buildStagePolicy(opts, DEFAULT_POLL_INTERVAL_MS, DEFAULT_MAX_POLL_INTERVAL_MS);
 
   // 1. Compile strategy (single synchronous request)
   opts.onProgress?.({ stage: 'compiling' });
-  const strategyId = await compileStrategy(req.strategy, opts);
+  const strategyId = await compileStrategySource(req.strategy, opts.signal);
 
   // 2. Prepare data
   opts.onProgress?.({ stage: 'preparing' });
@@ -126,106 +93,40 @@ export async function backtest(
   return executeStrategy(req, prepareJobId, strategyId, policy, opts);
 }
 
-function buildStagePolicy(opts: BacktestOptions): IPolicy<ICancellationContext, never> {
-  const retryPolicy = retry(
-    handleWhenResult((r) => {
-      const status = (r as { status?: unknown } | undefined)?.status;
-      return normalizeStatus(status) === 'in-progress';
-    }),
-    {
-      maxAttempts: Number.MAX_SAFE_INTEGER,
-      backoff: new ExponentialBackoff({
-        initialDelay: opts.pollIntervalMs ?? 500,
-        maxDelay: opts.maxPollIntervalMs ?? 5000,
-      }),
-    },
-  );
-
-  return opts.timeoutMs
-    ? wrap(timeout(opts.timeoutMs, TimeoutStrategy.Cooperative), retryPolicy)
-    : retryPolicy;
-}
-
-/**
- * Compile in a single request: the API answers synchronously with the `strategyId`,
- * so there is no job to poll. A compile error arrives here as a `400`, not on a later poll.
- */
-async function compileStrategy(source: string, opts: BacktestOptions): Promise<string> {
-  const { data, error, response } = await apiCompileStrategy({
-    body: source,
-    ...(opts.signal ? { signal: opts.signal } : {}),
-  });
-
-  if (error) {
-    // A 429 means the platform is holding too many compilations at once and the source was never
-    // judged — worth separating from the 400 that says the source itself does not compile.
-    // Read the status inside this branch and optionally: a transport failure carries no response,
-    // and dereferencing one would raise a TypeError that buries the error actually being reported.
-    if (response?.status === 429) {
-      throw new QTSStrategyCompileError(
-        'Strategy was not compiled, too many compilations in flight; retry later',
-        error,
-      );
-    }
-    throw new QTSStrategyCompileError('Strategy compilation failed', error);
-  }
-  if (!data?.strategyId) {
-    throw new QTSStrategyCompileError('Compile response missing strategyId');
-  }
-  return data.strategyId;
-}
-
-async function prepareData(
+function prepareData(
   req: BacktestRequest,
-  policy: IPolicy<ICancellationContext, never>,
+  policy: StagePolicy,
   opts: BacktestOptions,
 ): Promise<string> {
-  const { data, error } = await prepareBacktest({
-    path: { exchangeId: req.exchangeId, type: TICKER },
-    body: { instrument: req.instrument, from: req.from, to: req.to },
-    ...(opts.signal ? { signal: opts.signal } : {}),
-  });
-  if (error) throw new QTSPreparationError('Prepare submission failed', error);
-  if (!data?.jobId) throw new QTSPreparationError('Missing jobId in prepare response');
-
-  const prepareJobId = data.jobId;
-  const state = await runStage(
-    policy,
-    opts,
-    async ({ signal }) => {
-      const res = await getPrepareStatus({
-        path: { exchangeId: req.exchangeId, type: TICKER, jobId: prepareJobId },
-        signal,
-      });
-      if (res.error) throw new QTSPreparationError('Preparation status request failed', res.error);
-      if (!res.data) throw new QTSPreparationError('Empty preparation status response');
-      return res.data;
+  return prepareDataset(
+    {
+      exchangeId: req.exchangeId,
+      instrument: req.instrument,
+      from: req.from,
+      to: req.to,
     },
-    (r) => {
-      if (r.size > 0) {
-        opts.onProgress?.({ stage: 'preparing', percent: (r.completed / r.size) * 100 });
-      }
+    policy,
+    {
+      ...(opts.signal ? { signal: opts.signal } : {}),
+      ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+      onPercent: (percent) => opts.onProgress?.({ stage: 'preparing', percent }),
+      // Surface the backend's coverage ratio for the prepared window (spec 0.98.0) on the
+      // final preparing event, so callers can react to a partially-covered range.
+      onPrepared: (state) =>
+        opts.onProgress?.({
+          stage: 'preparing',
+          percent: 100,
+          coverageRatio: state.coverageRatio,
+        }),
     },
   );
-
-  const prepNorm = normalizeStatus(state.status);
-  if (prepNorm === 'failed') {
-    throw new QTSPreparationError(state.statusDetail ?? 'Data preparation failed');
-  }
-  if (prepNorm === 'aborted') {
-    throw new QTSCanceledError('Data preparation aborted');
-  }
-  // Surface the backend's coverage ratio for the prepared window (spec 0.98.0) on the
-  // final preparing event, so callers can react to a partially-covered range.
-  opts.onProgress?.({ stage: 'preparing', percent: 100, coverageRatio: state.coverageRatio });
-  return prepareJobId;
 }
 
 async function executeStrategy(
   req: BacktestRequest,
   prepareJobId: string,
   strategyId: string,
-  policy: IPolicy<ICancellationContext, never>,
+  policy: StagePolicy,
   opts: BacktestOptions,
 ): Promise<BacktestResult> {
   const { data, error } = await executeBacktest({
@@ -245,7 +146,6 @@ async function executeStrategy(
   try {
     const finalResult = await runStage(
       policy,
-      opts,
       async ({ signal }) => {
         const res = await getBacktestResult({
           path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
@@ -258,10 +158,14 @@ async function executeStrategy(
         // see normalizeStatus. Do not "fix" this into a throw or an early return of the result.
         return { ...res.data.state, __result: res.data.results };
       },
-      (r) => {
-        if (r.size > 0) {
-          opts.onProgress?.({ stage: 'executing', percent: (r.completed / r.size) * 100 });
-        }
+      {
+        ...(opts.signal ? { signal: opts.signal } : {}),
+        ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+        onEachAttempt: (r) => {
+          if (r.size > 0) {
+            opts.onProgress?.({ stage: 'executing', percent: (r.completed / r.size) * 100 });
+          }
+        },
       },
     );
 
@@ -279,31 +183,6 @@ async function executeStrategy(
         path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
       }).catch(() => undefined);
     }
-    throw err;
-  }
-}
-
-async function runStage<T extends { status: JobStatus }>(
-  policy: IPolicy<ICancellationContext, never>,
-  opts: BacktestOptions,
-  fetchFn: (ctx: ICancellationContext) => Promise<T>,
-  onEachAttempt?: (r: T) => void,
-): Promise<T> {
-  try {
-    return await policy.execute(async (ctx) => {
-      if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted');
-      const result = await fetchFn(ctx);
-      onEachAttempt?.(result);
-      if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted');
-      return result;
-    }, opts.signal);
-  } catch (err) {
-    if (err instanceof QTSCanceledError) throw err;
-    if (err instanceof TaskCancelledError) {
-      if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted', err);
-      throw new QTSTimeoutError(`Stage exceeded ${opts.timeoutMs}ms`, err);
-    }
-    if (opts.signal?.aborted) throw new QTSCanceledError('Workflow aborted', err);
     throw err;
   }
 }

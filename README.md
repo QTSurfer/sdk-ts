@@ -98,6 +98,122 @@ Polling uses exponential backoff (`intervalMs * 1.5`, capped at `maxIntervalMs`)
 
 Progress is emitted on every stage transition and after each poll whose `size > 0`.
 
+## Parameter sweeps
+
+`sweep()` runs the same strategy once per parameter vector over one instrument and one window,
+then scores and ranks the trials against a single objective. It is one call — compile → prepare →
+`executeSweep` → poll the leaderboard — because the execute-sweep endpoint is addressed by the id
+of an already-prepared dataset, and preparing is idempotent.
+
+It resolves as soon as the platform accepts the sweep, handing back a handle while the leaderboard
+keeps being polled in the background.
+
+```ts
+const handle = await qts.sweep(
+  {
+    strategy: source,
+    exchangeId: 'binance',
+    instrument: 'BTC/USDT',
+    from: '2026-01-01T00:00:00Z',
+    to: '2026-02-01T00:00:00Z',
+    params: {
+      rsiPeriod: { from: 7, to: 28, step: 1 },
+      useTrendFilter: { values: [true, false] },
+    },
+    objective: 'sharpe',
+  },
+  {
+    onProgress: (p) => {
+      if (p.stage === 'executing') console.log(p.percent, p.snapshot?.etaSeconds);
+    },
+  },
+);
+
+// Available before a single trial has run.
+handle.sweepId;
+handle.accepted.seed; // effective seed — resubmit it to replay a sampled sweep exactly
+handle.accepted.queued; // false ⇒ an identical sweep already existed; nothing was enqueued
+handle.accepted.walkForward; // present ⇒ this sweep answers in the walk-forward shape
+
+const result = await handle.result;
+const sensitivity = await handle.sensitivity();
+
+// Same sweep, another view — a read, not a re-run.
+const everyRow = await handle.results({ order: 'natural' });
+```
+
+`params` axes take one of two shapes: `{ from, to, step }` for a numeric range, or
+`{ values: [...] }` for an explicit list of numbers or booleans. `sampler: 'random' | 'lhs'` draws
+`samples` vectors instead of the full cross product.
+
+### Reading the leaderboard
+
+Five things the types cannot tell you:
+
+- **The default order is not the raw objective order.** `ranking` defaults to `'plateau'` — the
+  objective of the worst run in a point's neighbourhood — because the highest raw score is often a
+  spike that does not survive small parameter moves. `result.ranking` reports which ordering was
+  *actually* applied, which is not always the one requested.
+- **`neighbourCount: 0` means unevidenced, not confirmed.** Read it together with `plateauScore`:
+  the point simply had no neighbours in the grid to compare against.
+- **`truncated === true` means rows were dropped** from the ranked view. `order: 'natural'` is the
+  route to them — every available row, untruncated, in `runIx` order. Reach them with
+  `handle.results({ order: 'natural' })`, described below.
+- **`deflatedSharpe`** is the probability that a row's Sharpe reflects real edge rather than the
+  best draw from however many vectors were tried; ~0.95 and up survives the multiple-testing
+  correction, ~0.5 and below does not. **`pbo`** says the same thing about the search as a whole:
+  above ~0.5 the sweep is selecting noise, whatever its top row says. Both are absent when there is
+  too little to compute them from — `pbo` also while the sweep is still running.
+- **`aborted` and `failedShards` on the progress snapshot count different things** — runs that ran
+  badly versus whole units of work that never reported. Adding them double-counts. `etaSeconds` is
+  omitted rather than zeroed when it cannot be computed.
+
+### Re-reading a sweep under another view
+
+`order` and `ranking` are query parameters on the result endpoint, so looking at the same sweep a
+different way is a **read**, not a re-run:
+
+```ts
+const everyRow = await handle.results({ order: 'natural' });
+```
+
+`handle.results(view?)` compiles nothing, prepares nothing and submits nothing — no second sweep is
+created. An absent property takes the platform default, and `ranking` is ignored alongside
+`order: 'natural'` (that view is always `runIx`-ordered, and the response reports `'raw'`). It works
+on a sweep still in flight, returning the rows finished so far, exactly like `sensitivity()`.
+
+The `order` / `ranking` passed in `SweepOptions` only decide what the background poll behind
+`handle.result` reads; `results()` is how to change the view afterwards.
+
+### Walk-forward validation
+
+Adding `walkForward: { folds, inSamplePct? }` changes what the sweep does, not just how much of it
+runs: the data is cut into sequential folds, each optimizing the whole grid on its own window and
+then scoring only its winner on the window immediately after. It costs folds × grid, so it is
+opt-in, and a request that multiplies past the platform's sweep budget is rejected.
+
+The answer arrives in a different shape, and `walkForward` is the discriminator — present from
+acceptance onward, so it is safe to branch on while polling. Its leaderboard is one row per
+completed fold, with **`runIx` carrying the fold index rather than a grid position**, and no
+plateau, deflated-Sharpe or PBO figure is reported. An absent `paramDrift` is *not* zero: the
+figure could not be computed, and zero is itself a meaningful reading there.
+
+### Sensitivity
+
+`handle.sensitivity(objective?)` answers what a leaderboard cannot: whether an axis moved the
+objective at all. Marginals collapse every axis but one; heatmaps do the same over a pair.
+**Check `heatmapsTruncated`** — marginals are always complete, but the pair surfaces are quadratic
+in the axis count and may be capped, so a short list is not necessarily the whole interaction set.
+
+### Cancelling a sweep
+
+Pass an `AbortSignal`, as with `backtest()`. Unlike `backtest()`, **awaiting a cancelled sweep
+resolves rather than rejecting**: cancellation is requested between parameter vectors and the rows
+already completed stay readable, so the SDK keeps polling until the platform reports the sweep
+`CANCELLED` and then hands back the partial leaderboard. Read `result.status` to tell
+`COMPLETED`, `PARTIAL` and `CANCELLED` apart. Aborting *before* the sweep is accepted rejects the
+`sweep()` call itself — there is no sweep yet, and so no rows to keep.
+
 ## Hourly tickers/klines downloads
 
 Stream one hour of raw ticker or kline data for an instrument. The default wire format is [Lastra](https://github.com/QTSurfer/lastra-ts) (`application/vnd.lastra`); pass `format: 'parquet'` for on-the-fly Parquet conversion.
@@ -232,6 +348,9 @@ setTimeout(() => controller.abort(), 60_000);
 await qts.backtest(req, { signal: controller.signal });
 ```
 
+`sweep()` takes the same option but answers differently once the sweep has been accepted — see
+[Cancelling a sweep](#cancelling-a-sweep).
+
 ## Under the hood
 
 Polling, retry, backoff, timeout, and cancellation are delegated to [`cockatiel`](https://github.com/connor4312/cockatiel). Each workflow stage composes a `retry` policy (exponential backoff on in-progress statuses) with an optional `timeout` policy. If you need advanced resilience primitives (circuit breakers, bulkheads, fallbacks), import them directly from `cockatiel`.
@@ -275,12 +394,15 @@ src/
 │   ├── session.ts        # authenticate() — session bootstrap + JWT refresh on 401
 │   └── tokenStore.ts     # TokenStore contract + default InMemoryTokenStore
 ├── internal/
+│   ├── polling.ts        # the one poll loop + status normalization every stage runs on
+│   ├── preparation.ts    # compile and prepare, shared by every workflow that needs a dataset
 │   └── requestError.ts   # QTSError construction for single-request calls
 └── workflows/
     ├── backtest.ts       # compile → prepare → execute (cockatiel policies)
     ├── catalog.ts        # exchanges + instruments (HAL envelope unwrapped)
     ├── downloads.ts      # hourly tickers/klines as Lastra/Parquet blobs
-    └── strategies.ts     # validation request + recorded strategy state
+    ├── strategies.ts     # validation request + recorded strategy state
+    └── sweep.ts          # compile → prepare → executeSweep + leaderboard handle
 ```
 
 ## Development

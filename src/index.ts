@@ -22,6 +22,30 @@ export type {
   BacktestStage,
   BacktestOptions,
 } from './workflows/backtest';
+export type {
+  ParamAxis,
+  Sweep,
+  SweepAccepted,
+  SweepHeatmap,
+  SweepHeatmapCell,
+  SweepMarginal,
+  SweepMarginalPoint,
+  SweepObjective,
+  SweepOptions,
+  SweepOrder,
+  SweepProgress,
+  SweepProgressEvent,
+  SweepRanking,
+  SweepRequest,
+  SweepResult,
+  SweepRunRow,
+  SweepSampler,
+  SweepSensitivity,
+  SweepState,
+  SweepWalkForward,
+  WalkForwardFold,
+  WalkForwardResult,
+} from './workflows/sweep';
 export type { DownloadFormat } from './workflows/downloads';
 export type {
   Exchange,

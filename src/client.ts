@@ -23,6 +23,12 @@ import {
   type StrategyState,
   type StrategyValidation,
 } from './workflows/strategies';
+import {
+  sweep as runSweep,
+  type Sweep,
+  type SweepOptions,
+  type SweepRequest,
+} from './workflows/sweep';
 
 /** Configuration for {@link QTSurfer}. */
 export interface QTSurferOptions {
@@ -54,7 +60,7 @@ export interface DownloadHourArgs {
 
 /**
  * Thin, stateless wrapper over `@qtsurfer/api-client` that exposes the SDK's
- * workflow methods (`backtest`, `tickers`, `klines`), the platform catalog
+ * workflow methods (`backtest`, `sweep`, `tickers`, `klines`), the platform catalog
  * (`exchanges`, `instruments`) and the strategy surface (`validateStrategy`,
  * `strategy`). Constructing an
  * instance reconfigures the underlying api-client singleton, so avoid
@@ -81,6 +87,48 @@ export class QTSurfer {
    */
   backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
     return backtest(req, opts);
+  }
+
+  /**
+   * Run the full compile → prepare → executeSweep pipeline and resolve once the
+   * platform has accepted the sweep, handing back a {@link Sweep} that keeps
+   * polling the leaderboard in the background.
+   *
+   * The whole sweep is one call because the execute-sweep endpoint is addressed
+   * by the id of an already-prepared dataset: exposing the stages separately
+   * would hand dataset lifecycle to the caller and buy nothing. Preparing is
+   * idempotent, so sweeping the same window twice prepares it once.
+   *
+   * The returned promise rejects with {@link QTSStrategyCompileError} if
+   * compilation fails, {@link QTSPreparationError} if data preparation fails,
+   * {@link QTSExecutionError} if the platform rejects the sweep — an expanded
+   * grid over the server limit, or a walk-forward request whose fold count
+   * multiplies past the sweep budget, both answer `400` — {@link QTSTimeoutError}
+   * if a stage exceeds `timeoutMs`, or {@link QTSCanceledError} if the caller's
+   * signal fires before the sweep is accepted. A plain {@link QTSError} means
+   * the request itself is malformed (an empty grid, a non-positive `step`, a
+   * walk-forward block with fewer than two folds) and never reached the network.
+   *
+   * What the sweep *found* arrives through {@link Sweep.result}, which is also
+   * where the semantics of the leaderboard are documented. Acceptance already
+   * answers three things worth reading before any result exists — the effective
+   * seed, whether this submission enqueued anything, and whether this is a
+   * walk-forward sweep — see {@link Sweep.accepted}.
+   *
+   * ```ts
+   * const handle = await qts.sweep({
+   *   strategy: source,
+   *   exchangeId: 'binance',
+   *   instrument: 'BTC/USDT',
+   *   from: '2026-01-01T00:00:00Z',
+   *   to: '2026-02-01T00:00:00Z',
+   *   params: { rsiPeriod: { from: 7, to: 28, step: 1 } },
+   * });
+   * const leaderboard = await handle.result;
+   * ```
+   */
+  sweep(req: SweepRequest, opts?: SweepOptions): Promise<Sweep> {
+    return runSweep(req, opts);
   }
 
   /**
