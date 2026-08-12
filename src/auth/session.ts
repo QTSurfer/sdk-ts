@@ -11,9 +11,22 @@ import {
   type BacktestResult,
 } from '../workflows/backtest';
 import {
+  listExchanges,
+  listInstruments,
+  type Exchange,
+  type InstrumentDetail,
+  type InstrumentSegment,
+} from '../workflows/catalog';
+import {
   downloadKlines,
   downloadTickers,
 } from '../workflows/downloads';
+import {
+  getStrategy,
+  validateStrategy as runValidateStrategy,
+  type StrategyState,
+  type StrategyValidation,
+} from '../workflows/strategies';
 import type { DownloadHourArgs } from '../client';
 import { InMemoryTokenStore, type TokenStore } from './tokenStore';
 
@@ -155,6 +168,48 @@ export class AuthenticatedClient {
   klines(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadKlines(args));
   }
+
+  /**
+   * List the exchanges the platform serves. Refreshes the token once on `401`
+   * before retrying.
+   */
+  exchanges(): Promise<Exchange[]> {
+    return this.withRefreshOn401(() => listExchanges());
+  }
+
+  /**
+   * List an exchange's instruments, optionally for a specific segment.
+   * Refreshes the token once on `401` before retrying. See
+   * {@link QTSurfer.instruments} for what the unwrapped HAL envelope leaves
+   * out.
+   */
+  instruments(
+    exchangeId: string,
+    segment?: InstrumentSegment,
+  ): Promise<InstrumentDetail[]> {
+    return this.withRefreshOn401(() => listInstruments(exchangeId, segment));
+  }
+
+  /**
+   * Ask the platform to check that a registered strategy can actually run.
+   * Refreshes the token once on `401` before retrying. Two-outcome — see
+   * {@link QTSurfer.validateStrategy}; `queued: true` is not terminal and
+   * must be followed by polling {@link AuthenticatedClient.strategy} under a
+   * deadline of your own.
+   */
+  validateStrategy(strategyId: string): Promise<StrategyValidation> {
+    return this.withRefreshOn401(() => runValidateStrategy(strategyId));
+  }
+
+  /**
+   * Read a strategy's recorded state, including its validation verdict.
+   * Refreshes the token once on `401` before retrying. See
+   * {@link StrategyState} for why a `'passed'` verdict is a floor rather than
+   * a guarantee.
+   */
+  strategy(strategyId: string): Promise<StrategyState> {
+    return this.withRefreshOn401(() => getStrategy(strategyId));
+  }
 }
 
 /**
@@ -162,8 +217,9 @@ export class AuthenticatedClient {
  *
  * If `apikey` is omitted, the SDK reads `QTSURFER_APIKEY` from the
  * environment. The returned {@link AuthenticatedClient} caches the JWT,
- * refreshes it on 401, and exposes the same workflow surface as
- * `QTSurfer` (`backtest`, `tickers`, `klines`).
+ * refreshes it on 401, and exposes the same surface as `QTSurfer`
+ * (`backtest`, `tickers`, `klines`, `exchanges`, `instruments`,
+ * `validateStrategy`, `strategy`).
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.
  */

@@ -23,6 +23,15 @@ export type {
   BacktestOptions,
 } from './workflows/backtest';
 export type { DownloadFormat } from './workflows/downloads';
+export type {
+  Exchange,
+  InstrumentDetail,
+  InstrumentSegment,
+} from './workflows/catalog';
+export type {
+  StrategyState,
+  StrategyValidation,
+} from './workflows/strategies';
 export {
   authenticate,
   AuthenticatedClient,

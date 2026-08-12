@@ -124,6 +124,70 @@ const klines = await qts.klines({
 
 HTTP errors surface as `QTSDownloadError` (subclass of `QTSError`).
 
+## Exchanges and instruments
+
+```ts
+const exchanges = await qts.exchanges();
+
+// The exchange's default segment (spot today).
+const spot = await qts.instruments('binance');
+
+// A specific segment.
+const futures = await qts.instruments('binance', 'futures');
+
+console.log(spot[0]?.coverage?.tickers); // which dates are actually available
+```
+
+The API answers the instrument routes with a HAL envelope (`data` / `meta` / `_links`); the SDK
+unwraps it and hands you the array. That also means `meta.segment` never reaches you, so if you need
+certainty about which segment you are looking at, pass `segment` explicitly instead of relying on
+the default.
+
+## Strategy validation
+
+`validateStrategy()` asks the platform to instantiate the compiled class and drive it through a
+bounded synthetic series, so a wiring fault surfaces before your first backtest instead of during
+it. It is idempotent and has **two outcomes**, which the SDK keeps distinct.
+
+The `strategyId` is the one returned when the source was compiled and registered. This SDK does not
+surface compilation on its own — `backtest()` does it internally and keeps the id — so obtain it
+from `compileStrategy()` in [`@qtsurfer/api-client`](https://github.com/QTSurfer/api-client-ts) if
+you need to validate a strategy before running it.
+
+```ts
+const outcome = await qts.validateStrategy(strategyId);
+
+if (outcome.queued) {
+  // A check was just started. NOT terminal — poll, under a deadline of your own.
+  const deadline = Date.now() + 60_000;
+  let state = await qts.strategy(strategyId);
+  while (state.validation === 'pending' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1_000));
+    state = await qts.strategy(strategyId);
+  }
+} else {
+  // A verdict already existed and nothing was queued — but read
+  // `state.validation`, because it can itself still be 'pending'.
+  console.log(outcome.state.validation);
+}
+```
+
+Two things worth internalizing, because no type can express them:
+
+- **`'passed'` is a floor, not a guarantee.** The class loaded and survived the first event of a
+  short synthetic run — not your instrument, not your window, not the rest of the run. It says
+  nothing about whether the strategy is correct or safe to run at scale. `dryRunIncomplete` marks a
+  check that ran out of its budget, which makes the floor lower still and makes an empty `notices`
+  list no longer a clean bill of health.
+- **`'pending'` is not guaranteed to resolve.** A queued check can go unreported for far longer than
+  one takes, which the platform eventually flags as `validationStalled` — nothing is disproved about
+  the strategy, the check simply did not run. That is why the loop above has a deadline and why the
+  SDK ships no polling helper: the timeout is your policy, not the SDK's.
+
+A verdict also describes the bytecode that existed when it was recorded. If `compiledAt` is newer
+than `validatedAt`, the strategy was recompiled afterwards and the verdict no longer describes what
+would run — ask for validation again.
+
 ## Error hierarchy
 
 All SDK errors extend `QTSError` so you can catch them generically or match by subclass.
@@ -210,9 +274,13 @@ src/
 ├── auth/
 │   ├── session.ts        # authenticate() — session bootstrap + JWT refresh on 401
 │   └── tokenStore.ts     # TokenStore contract + default InMemoryTokenStore
+├── internal/
+│   └── requestError.ts   # QTSError construction for single-request calls
 └── workflows/
     ├── backtest.ts       # compile → prepare → execute (cockatiel policies)
-    └── downloads.ts      # hourly tickers/klines as Lastra/Parquet blobs
+    ├── catalog.ts        # exchanges + instruments (HAL envelope unwrapped)
+    ├── downloads.ts      # hourly tickers/klines as Lastra/Parquet blobs
+    └── strategies.ts     # validation request + recorded strategy state
 ```
 
 ## Development

@@ -2,8 +2,10 @@
  * Base class for every error the SDK throws. Catch this to handle all SDK
  * failures generically, or catch a specific subclass below to tell which
  * stage failed. `status` is only set when the throw site had an HTTP status
- * to attach — today that is just {@link QTSDownloadError}; the workflow-stage
- * errors carry `cause` instead and encode retryability in their message.
+ * to attach: {@link QTSDownloadError} always carries one, and so does the
+ * plain `QTSError` thrown by the single-request calls (`exchanges`,
+ * `instruments`, `validateStrategy`, `strategy`). The workflow-stage errors
+ * carry `cause` instead and encode retryability in their message.
  */
 export class QTSError extends Error {
   /** HTTP status code, when the underlying transport surfaced one. */

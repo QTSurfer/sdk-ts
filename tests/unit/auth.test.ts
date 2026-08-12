@@ -4,12 +4,14 @@ const setConfig = vi.fn();
 const apiAuth = vi.fn();
 const apiDownloadTickers = vi.fn();
 const apiDownloadKlines = vi.fn();
+const apiListExchanges = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
   authenticate: apiAuth,
   compileStrategy: vi.fn(),
   getStrategy: vi.fn(),
+  validateStrategy: vi.fn(),
   prepareBacktest: vi.fn(),
   getPrepareStatus: vi.fn(),
   executeBacktest: vi.fn(),
@@ -17,6 +19,9 @@ vi.mock('@qtsurfer/api-client', () => ({
   cancelBacktest: vi.fn(),
   downloadTickers: apiDownloadTickers,
   downloadKlines: apiDownloadKlines,
+  listExchanges: apiListExchanges,
+  listInstruments: vi.fn(),
+  listSegmentInstruments: vi.fn(),
 }));
 
 function authOk(token = 'jwt-1') {
@@ -163,6 +168,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     setConfig.mockClear();
     apiAuth.mockReset();
     apiDownloadTickers.mockReset();
+    apiListExchanges.mockReset();
   });
 
   it('refreshes JWT once on 401 then retries the original call', async () => {
@@ -247,5 +253,25 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // Only the initial mint — no refresh.
     expect(apiAuth).toHaveBeenCalledTimes(1);
     expect(apiDownloadTickers).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes on 401 for the catalog surface too', async () => {
+    apiAuth.mockResolvedValueOnce(authOk('jwt-1'));
+    apiAuth.mockResolvedValueOnce(authOk('jwt-2'));
+
+    const exchanges = [{ id: 'binance', name: 'Binance' }];
+    apiListExchanges.mockResolvedValueOnce(http401());
+    apiListExchanges.mockResolvedValueOnce(ok(exchanges));
+
+    const { authenticate } = await import('../../src/auth/session');
+    const session = await authenticate('ak');
+
+    // These calls throw a plain QTSError that carries `status`, which is what
+    // makes the refresh fire at all — the backtest workflow's stage errors do
+    // not carry one and so are never retried.
+    await expect(session.exchanges()).resolves.toEqual(exchanges);
+    expect(apiAuth).toHaveBeenCalledTimes(2);
+    expect(apiListExchanges).toHaveBeenCalledTimes(2);
+    expect(setConfig.mock.calls.at(-1)?.[0]?.headers?.Authorization).toBe('Bearer jwt-2');
   });
 });
