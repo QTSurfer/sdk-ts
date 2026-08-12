@@ -523,6 +523,18 @@ export interface Sweep {
    * reported for one — the out-of-sample numbers are already the honest
    * measurement. See {@link WalkForwardResult} for why an absent `paramDrift`
    * is not a zero.
+   *
+   * ### An empty leaderboard is not always an empty answer
+   *
+   * A sweep can finish having scored nothing, because every shard failed before
+   * producing a row. When that happens `failReason` carries the cause reported
+   * by the *first* shard to fail — typically something the whole grid would have
+   * hit, such as a strategy that could not be loaded. Read it before concluding
+   * that a sweep with no rows simply found nothing: those are different
+   * outcomes and the leaderboard alone cannot tell them apart. Only the first
+   * failure is recorded, so where several shards failed for different reasons
+   * this names one of them rather than summarising all — pair it with
+   * `progress.failedShards` for the count.
    */
   readonly result: Promise<SweepResult>;
   /**

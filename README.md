@@ -266,9 +266,11 @@ bounded synthetic series, so a wiring fault surfaces before your first backtest 
 it. It is idempotent and has **two outcomes**, which the SDK keeps distinct.
 
 The `strategyId` is the one returned when the source was compiled and registered. This SDK does not
-surface compilation on its own — `backtest()` does it internally and keeps the id — so obtain it
-from `compileStrategy()` in [`@qtsurfer/api-client`](https://github.com/QTSurfer/api-client-ts) if
-you need to validate a strategy before running it.
+surface compilation on its own — `backtest()` and `sweep()` each do it internally and keep the id —
+so obtain it from `compileStrategy()` in
+[`@qtsurfer/api-client`](https://github.com/QTSurfer/api-client-ts) if you need to validate a
+strategy before running it. That is a real difference between the two SDKs rather than an oversight
+in either: the Java SDK exposes a standalone `compile(...)`, and this one does not.
 
 ```ts
 const outcome = await qts.validateStrategy(strategyId);
@@ -303,6 +305,54 @@ Two things worth internalizing, because no type can express them:
 A verdict also describes the bytecode that existed when it was recorded. If `compiledAt` is newer
 than `validatedAt`, the strategy was recompiled afterwards and the verdict no longer describes what
 would run — ask for validation again.
+
+## API coverage
+
+Measured against **API spec 0.107.0**: 18 operations, all 18 reachable from this SDK.
+
+It exists because the generated `@qtsurfer/api-client` tracks the spec automatically and this
+hand-written layer does not, so an operation the platform serves could otherwise have no way in
+without anything failing to compile.
+
+**Maintenance contract.** When the spec gains an operation, it gains a row here. If this layer
+deliberately does not wrap it, the row says why.
+
+There are two ways an operation is reached:
+
+- **Direct** — callable on its own, without running a workflow. The client methods below
+  (`exchanges`, `instruments`, `tickers`, `klines`, `validateStrategy`, `strategy`) exist on
+  `QTSurfer` and, identically, on the authenticated session. The remaining direct rows are reached
+  otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
+  `Sweep.*` entries live on the handle `sweep()` hands back and, being handle-scoped, sit outside
+  the session's refresh-on-401 policy; and the two cancels are an option you pass in rather than a
+  call you make.
+- **Via workflow** — reachable only as a stage inside `backtest(...)` or `sweep(...)`, with no
+  standalone method. Deliberate rather than missing: the workflow owns the dataset lifecycle.
+  Prepare, execute and result are addressed by ids the workflow mints and threads through the
+  stages, so exposing a stage on its own would hand the caller a `requestId` to keep alive and pass
+  around correctly, and buy nothing in return — preparing is idempotent, so preparing on every run
+  duplicates no work.
+
+| Operation | How it is reached |
+| --- | --- |
+| `authenticate` | Direct — `authenticate()` |
+| `listExchanges` | Direct — `exchanges()` |
+| `listInstruments` | Direct — `instruments(exchangeId)` |
+| `listSegmentInstruments` | Direct — `instruments(exchangeId, segment)` |
+| `downloadTickers` | Direct — `tickers(...)` |
+| `downloadKlines` | Direct — `klines(...)` |
+| `compileStrategy` | Via workflow — inside `backtest(...)` / `sweep(...)`; no standalone method, unlike the Java SDK |
+| `validateStrategy` | Direct — `validateStrategy(strategyId)` |
+| `getStrategy` | Direct — `strategy(strategyId)` |
+| `prepareBacktest` | Via workflow |
+| `getPrepareStatus` | Via workflow |
+| `executeBacktest` | Via workflow — `backtest(...)` |
+| `getBacktestResult` | Via workflow |
+| `cancelBacktest` | Direct — the `signal` (`AbortSignal`) option on `BacktestOptions` |
+| `executeSweep` | Via workflow — `sweep(...)` |
+| `getSweepResult` | Via workflow (the background poll behind `Sweep.result`) and direct — `Sweep.results(view?)` re-reads the same sweep under another view |
+| `cancelSweep` | Direct — the `signal` option on `SweepOptions` |
+| `getSweepSensitivity` | Direct — `Sweep.sensitivity(objective?)` |
 
 ## Error hierarchy
 
@@ -357,15 +407,9 @@ Polling, retry, backoff, timeout, and cancellation are delegated to [`cockatiel`
 
 ## Roadmap
 
-Milestone labels below (`v0.1`–`v0.4`) track feature scope, not the npm package's
-semver — see [CHANGELOG.md](./CHANGELOG.md) for the actual release history.
-
-### v0.1 — Core workflow ✅
-
-- [x] `QTSurfer` client over `@qtsurfer/api-client`
-- [x] `qts.backtest()` orchestrating compile → prepare → execute
-- [x] Backoff, timeout, and `AbortSignal` cancellation via `cockatiel` policies
-- [x] Error hierarchy: `QTSError`, `QTSStrategyCompileError`, `QTSPreparationError`, `QTSExecutionError`, `QTSTimeoutError`, `QTSCanceledError`
+What the SDK reaches today is the [API coverage](#api-coverage) table; which release added what is
+in [CHANGELOG.md](./CHANGELOG.md). Milestone labels below track feature scope, not the npm package's
+semver.
 
 ### v0.2 — Domain objects
 
