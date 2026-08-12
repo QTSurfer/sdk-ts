@@ -1,5 +1,17 @@
 # @qtsurfer/sdk
 
+## 0.7.1
+
+### Patch Changes
+
+- Bump `@qtsurfer/api-client` to `^0.8.0` (API spec 0.106.0): sweep walk-forward validation and a
+  new sweep sensitivity endpoint.
+
+  No SDK-surface change. Sweep is not exposed by this SDK today, so the added `walkForward` request
+  and response fields, the `ranking` query param, the new required fields on `SweepProgress`, and
+  the new `getSweepSensitivity` operation have nothing in this package to touch — confirmed by
+  grepping `src/` and `tests/` for any existing reference to sweep, which found none.
+
 ## 0.7.0
 
 ### Minor Changes
