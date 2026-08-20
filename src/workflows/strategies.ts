@@ -1,7 +1,11 @@
 import {
   getStrategy as apiGetStrategy,
   validateStrategy as apiValidateStrategy,
+  listStrategies as apiListStrategies,
+  deleteStrategy as apiDeleteStrategy,
+  getStrategyCode as apiGetStrategyCode,
   type StrategyState as ApiStrategyState,
+  type StrategySummary as ApiStrategySummary,
 } from '@qtsurfer/api-client';
 import { QTSError } from '../errors';
 import { requestFailed } from '../internal/requestError';
@@ -28,6 +32,15 @@ import { requestFailed } from '../internal/requestError';
  * A verdict describes the bytecode that existed when it was recorded:
  * `compiledAt` newer than `validatedAt` means the strategy was recompiled
  * afterwards and the verdict no longer describes what would run.
+ *
+ * `_links.code`, when present, is a discovery link to this strategy's raw
+ * source (`GET /strategy/{strategyId}/code` — the same thing
+ * {@link QTSurfer.strategyCode} fetches by id, so there is no need to follow
+ * the link yourself). It is present on a full `StrategyState` body — this
+ * function's result, and {@link QTSurfer.validateStrategy}'s already-validated
+ * `200` — and **absent** from that same operation's `queued: true` (`202`)
+ * outcome, which is a deliberately partial stub. This field passes through
+ * unmodified from api-client, so it needs no unwrapping on the SDK's part.
  */
 export type StrategyState = ApiStrategyState;
 
@@ -115,4 +128,89 @@ export async function getStrategy(strategyId: string): Promise<StrategyState> {
   if (error) throw requestFailed('strategy lookup', error, response?.status);
   if (!data) throw new QTSError('Empty strategy response');
   return data;
+}
+
+/**
+ * One entry in {@link QTSurfer.strategies}'s result: the same provenance
+ * {@link QTSurfer.strategy} reports — `compiledAt`, `requiredSources` — but
+ * never `validation`, which is what keeps listing cheap no matter how many
+ * strategies you have registered. Check a specific strategy's verdict with
+ * {@link QTSurfer.strategy}.
+ *
+ * Note: the spec types this endpoint's `requiredSources` as a plain
+ * `string[]`, not the `'Ticker' | 'KLine' | 'FundingRate'` union that
+ * {@link StrategyState}'s own `requiredSources` carries — narrow it yourself
+ * if you need the literal type. Alias for api-client's `StrategySummary`.
+ */
+export type StrategySummary = ApiStrategySummary;
+
+/**
+ * List every strategy you have registered and not deleted, most recently
+ * compiled first.
+ *
+ * **Never `404`.** An empty array means you have none registered — not an
+ * error. Each entry omits `validation` on purpose (see {@link
+ * StrategySummary}); check a specific strategy's verdict with {@link
+ * QTSurfer.strategy}.
+ *
+ * @throws QTSError on any non-2xx response, with the HTTP status on `status`.
+ */
+export async function listStrategies(): Promise<StrategySummary[]> {
+  const { data, error, response } = await apiListStrategies();
+  if (error) throw requestFailed('strategies list', error, response?.status);
+  if (!data) throw new QTSError('Empty strategies response');
+  return data.strategies;
+}
+
+/**
+ * Release a registered strategy: removes it from both {@link
+ * QTSurfer.strategy} and {@link QTSurfer.strategies}.
+ *
+ * **Does not undo anything already run.** Backtests you ran against this
+ * strategy before deleting it are completely unaffected — deleting only
+ * stops you from validating or re-running it under this id going forward.
+ * Re-submitting the exact same source afterwards registers a **new**
+ * strategy with a **new** id; it does not "undelete" this one, because
+ * nothing about the id itself is restored.
+ *
+ * **Scoped to your own registration.** If you copied someone else's strategy
+ * (a shared/marketplace listing), deleting your copy never affects theirs,
+ * or anyone else's, regardless of how many callers registered the same
+ * source independently.
+ *
+ * Resolves with nothing: the response body is `{ strategyId, deleted: true }`,
+ * and both fields are things the caller already knows before calling this —
+ * `strategyId` is the argument just passed in, and `deleted` is always `true`
+ * on a `200`. There is nothing in it a `void` return would lose.
+ *
+ * @param strategyId the id returned when the strategy was compiled
+ * @throws QTSError on any non-2xx response; a `404` (carried on `status`)
+ * means no such registered strategy for this caller.
+ */
+export async function deleteStrategy(strategyId: string): Promise<void> {
+  const { error, response } = await apiDeleteStrategy({ path: { strategyId } });
+  if (error) throw requestFailed('strategy delete', error, response?.status);
+}
+
+/**
+ * Read back the exact source last submitted for a strategy id — the same
+ * text `strategyId` was derived from, whitespace and comments included.
+ *
+ * **A `404` here covers two cases the response cannot tell apart:** the id
+ * was never registered by you, or it resolves only through a shared/
+ * marketplace reference that carries no source of its own (a strategy you
+ * copied by reference rather than by resubmitting its code). Both read as
+ * "nothing to return" from this endpoint's point of view, and the SDK does
+ * not attempt to distinguish them — there is nothing in the response to tell
+ * them apart with.
+ *
+ * @param strategyId the id returned when the strategy was compiled
+ * @throws QTSError on any non-2xx response; a `404` (carried on `status`)
+ * is the two-case ambiguity described above.
+ */
+export async function getStrategyCode(strategyId: string): Promise<string> {
+  const { data, error, response } = await apiGetStrategyCode({ path: { strategyId } });
+  if (error) throw requestFailed('strategy code lookup', error, response?.status);
+  if (!data) throw new QTSError('Empty strategy code response');
+  return data.code;
 }

@@ -20,8 +20,12 @@ import {
 import {
   getStrategy,
   validateStrategy as runValidateStrategy,
+  listStrategies,
+  deleteStrategy as runDeleteStrategy,
+  getStrategyCode,
   type StrategyState,
   type StrategyValidation,
+  type StrategySummary,
 } from './workflows/strategies';
 import {
   sweep as runSweep,
@@ -62,7 +66,7 @@ export interface DownloadHourArgs {
  * Thin, stateless wrapper over `@qtsurfer/api-client` that exposes the SDK's
  * workflow methods (`backtest`, `sweep`, `tickers`, `klines`), the platform catalog
  * (`exchanges`, `instruments`) and the strategy surface (`validateStrategy`,
- * `strategy`). Constructing an
+ * `strategy`, `strategies`, `deleteStrategy`, `strategyCode`). Constructing an
  * instance reconfigures the underlying api-client singleton, so avoid
  * holding two `QTSurfer`s with different `baseUrl`s or tokens alive in the
  * same process — they will race. Prefer the `authenticate()` helper over
@@ -230,6 +234,51 @@ export class QTSurfer {
    */
   strategy(strategyId: string): Promise<StrategyState> {
     return getStrategy(strategyId);
+  }
+
+  /**
+   * List every strategy you have registered and not deleted, most recently
+   * compiled first. Never `404`s — an empty array means you have none.
+   * Each entry deliberately omits `validation`; check a specific strategy's
+   * verdict with {@link QTSurfer.strategy}. See {@link StrategySummary}.
+   *
+   * @throws QTSError on any non-2xx response, with the HTTP status on
+   * `status`.
+   */
+  strategies(): Promise<StrategySummary[]> {
+    return listStrategies();
+  }
+
+  /**
+   * Release a registered strategy: removes it from both {@link
+   * QTSurfer.strategy} and {@link QTSurfer.strategies}.
+   *
+   * Backtests already run against this strategy are unaffected, and
+   * re-submitting the same source afterwards registers a **new** strategy
+   * with a **new** id rather than undeleting this one. Deleting your own
+   * copy of a strategy never affects anyone else's copy of the same source
+   * (e.g. a shared/marketplace listing).
+   *
+   * @param strategyId the id returned when the strategy was compiled
+   * @throws QTSError on any non-2xx response; a `404` (carried on `status`)
+   * means no such registered strategy for this caller.
+   */
+  deleteStrategy(strategyId: string): Promise<void> {
+    return runDeleteStrategy(strategyId);
+  }
+
+  /**
+   * Read back the exact source last submitted for a strategy id, whitespace
+   * and comments included.
+   *
+   * A `404` (carried on `status`) covers two indistinguishable cases: the id
+   * was never registered by you, or it resolves only through a shared/
+   * marketplace reference that carries no source of its own.
+   *
+   * @param strategyId the id returned when the strategy was compiled
+   */
+  strategyCode(strategyId: string): Promise<string> {
+    return getStrategyCode(strategyId);
   }
 
   // Future surface:

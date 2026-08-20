@@ -55,6 +55,7 @@ export type {
 export type {
   StrategyState,
   StrategyValidation,
+  StrategySummary,
 } from './workflows/strategies';
 export {
   authenticate,

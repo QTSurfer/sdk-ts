@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { QTSurfer } from '../../src/index';
 
 const token = process.env.JWT_API_TOKEN;
-const baseUrl = process.env.QTSURFER_API_URL ?? 'https://api.staging.qtsurfer.com/v1';
+const baseUrl = process.env.QTSURFER_API_URL ?? 'https://api.qtsurfer.net/v1';
 const strategyPath =
   process.env.QTSURFER_TEST_STRATEGY ??
   resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/ForcedTradeStrategy.java');

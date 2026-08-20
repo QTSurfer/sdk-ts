@@ -24,8 +24,12 @@ import {
 import {
   getStrategy,
   validateStrategy as runValidateStrategy,
+  listStrategies,
+  deleteStrategy as runDeleteStrategy,
+  getStrategyCode,
   type StrategyState,
   type StrategyValidation,
+  type StrategySummary,
 } from '../workflows/strategies';
 import {
   sweep as runSweep,
@@ -238,6 +242,33 @@ export class AuthenticatedClient {
   strategy(strategyId: string): Promise<StrategyState> {
     return this.withRefreshOn401(() => getStrategy(strategyId));
   }
+
+  /**
+   * List every strategy you have registered and not deleted, most recently
+   * compiled first. Refreshes the token once on `401` before retrying. See
+   * {@link QTSurfer.strategies}.
+   */
+  strategies(): Promise<StrategySummary[]> {
+    return this.withRefreshOn401(() => listStrategies());
+  }
+
+  /**
+   * Release a registered strategy. Refreshes the token once on `401` before
+   * retrying. See {@link QTSurfer.deleteStrategy} for what this does and
+   * does not undo.
+   */
+  deleteStrategy(strategyId: string): Promise<void> {
+    return this.withRefreshOn401(() => runDeleteStrategy(strategyId));
+  }
+
+  /**
+   * Read back a strategy's exact registered source. Refreshes the token
+   * once on `401` before retrying. See {@link QTSurfer.strategyCode} for
+   * what its `404` covers.
+   */
+  strategyCode(strategyId: string): Promise<string> {
+    return this.withRefreshOn401(() => getStrategyCode(strategyId));
+  }
 }
 
 /**
@@ -247,7 +278,8 @@ export class AuthenticatedClient {
  * environment. The returned {@link AuthenticatedClient} caches the JWT,
  * refreshes it on 401, and exposes the same surface as `QTSurfer`
  * (`backtest`, `sweep`, `tickers`, `klines`, `exchanges`, `instruments`,
- * `validateStrategy`, `strategy`).
+ * `validateStrategy`, `strategy`, `strategies`, `deleteStrategy`,
+ * `strategyCode`).
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.
  */

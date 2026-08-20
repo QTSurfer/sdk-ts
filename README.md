@@ -306,9 +306,43 @@ A verdict also describes the bytecode that existed when it was recorded. If `com
 than `validatedAt`, the strategy was recompiled afterwards and the verdict no longer describes what
 would run — ask for validation again.
 
+## Managing registered strategies
+
+```ts
+// Every strategy you've registered and not deleted, most recently compiled first.
+// Never 404s — an empty array means you have none.
+const summaries = await qts.strategies();
+
+// The exact source last submitted for an id, whitespace and comments included.
+const code = await qts.strategyCode(strategyId);
+
+// Release a registration.
+await qts.deleteStrategy(strategyId);
+```
+
+`strategies()` deliberately omits `validation` on every entry — that is what keeps it cheap
+regardless of how many strategies you have registered. Check a specific one's verdict with
+`strategy(strategyId)`.
+
+`strategyCode()`'s `404` covers two cases the response cannot tell apart: the id was never
+registered by you, or it resolves only through a shared/marketplace reference that carries no
+source of its own.
+
+`deleteStrategy()` resolves with nothing. It removes the strategy from both `strategy()` and
+`strategies()`, but does not undo anything already run: backtests you ran against it beforehand are
+unaffected, and re-submitting the exact same source afterwards registers a **new** strategy with a
+**new** id rather than undeleting this one. Deleting your own copy of a strategy never affects
+anyone else's copy of the same source (e.g. a shared/marketplace listing).
+
+A full `StrategyState` — from `strategy()`, and from `validateStrategy()`'s already-validated `200`
+— carries an optional `_links.code` discovery link pointing at the same source `strategyCode()`
+fetches by id. It is absent from `validateStrategy()`'s `queued: true` (`202`) outcome, which is a
+deliberately partial stub. The SDK does not follow this link for you; it passes through unmodified
+from api-client, so read it off `StrategyState` directly if you want it.
+
 ## API coverage
 
-Measured against **API spec 0.107.0**: 18 operations, all 18 reachable from this SDK.
+Measured against **API spec 0.109.2**: 21 operations, all 21 reachable from this SDK.
 
 It exists because the generated `@qtsurfer/api-client` tracks the spec automatically and this
 hand-written layer does not, so an operation the platform serves could otherwise have no way in
@@ -320,8 +354,9 @@ deliberately does not wrap it, the row says why.
 There are two ways an operation is reached:
 
 - **Direct** — callable on its own, without running a workflow. The client methods below
-  (`exchanges`, `instruments`, `tickers`, `klines`, `validateStrategy`, `strategy`) exist on
-  `QTSurfer` and, identically, on the authenticated session. The remaining direct rows are reached
+  (`exchanges`, `instruments`, `tickers`, `klines`, `validateStrategy`, `strategy`, `strategies`,
+  `deleteStrategy`, `strategyCode`) exist on `QTSurfer` and, identically, on the authenticated
+  session. The remaining direct rows are reached
   otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
   `Sweep.*` entries live on the handle `sweep()` hands back and, being handle-scoped, sit outside
   the session's refresh-on-401 policy; and the two cancels are an option you pass in rather than a
@@ -341,9 +376,12 @@ There are two ways an operation is reached:
 | `listSegmentInstruments` | Direct — `instruments(exchangeId, segment)` |
 | `downloadTickers` | Direct — `tickers(...)` |
 | `downloadKlines` | Direct — `klines(...)` |
+| `listStrategies` | Direct — `strategies()` |
 | `compileStrategy` | Via workflow — inside `backtest(...)` / `sweep(...)`; no standalone method, unlike the Java SDK |
 | `validateStrategy` | Direct — `validateStrategy(strategyId)` |
 | `getStrategy` | Direct — `strategy(strategyId)` |
+| `deleteStrategy` | Direct — `deleteStrategy(strategyId)` |
+| `getStrategyCode` | Direct — `strategyCode(strategyId)` |
 | `prepareBacktest` | Via workflow |
 | `getPrepareStatus` | Via workflow |
 | `executeBacktest` | Via workflow — `backtest(...)` |

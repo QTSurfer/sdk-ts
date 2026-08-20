@@ -1,5 +1,34 @@
 # @qtsurfer/sdk
 
+## 0.9.0
+
+### Minor Changes
+
+- Add `strategies()`, `deleteStrategy()`, and `strategyCode()` to both `QTSurfer` and the
+  authenticated session, tracking `@qtsurfer/api-client`'s new `listStrategies`, `deleteStrategy`,
+  and `getStrategyCode` operations (API spec 0.109.2).
+
+  - `strategies()` — every strategy you have registered and not deleted, most recently compiled
+    first. Never `404`s; an empty array means you have none. Each entry deliberately omits
+    `validation`, which is what keeps listing cheap regardless of how many strategies you have —
+    check a specific one with the existing `strategy(strategyId)`.
+  - `deleteStrategy(strategyId)` — releases a registration, removing it from both `strategy()` and
+    `strategies()`. Resolves with nothing: it does not undo backtests already run against the
+    strategy, and re-submitting the same source afterwards registers a **new** strategy with a
+    **new** id rather than undeleting this one. Deleting your own copy of a strategy never affects
+    anyone else's copy of the same source (e.g. a shared/marketplace listing).
+  - `strategyCode(strategyId)` — the exact source last submitted for a strategy id. Its `404` covers
+    two cases the response cannot tell apart: the id was never registered by you, or it resolves
+    only through a shared/marketplace reference that carries no source of its own.
+
+  `StrategyState` (already a direct alias of api-client's type) picks up the new optional
+  `_links: { code: HalLink }` for free — present on a full state (`strategy()`, and
+  `validateStrategy()`'s already-validated `200`), absent from its `queued: true` (`202`) stub. The
+  SDK does not follow this link on your behalf; it passes through unmodified for you to read off
+  `StrategyState` directly.
+
+  No existing method signature changes.
+
 ## 0.8.0
 
 ### Minor Changes

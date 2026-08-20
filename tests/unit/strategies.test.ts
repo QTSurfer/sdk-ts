@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const setConfig = vi.fn();
 const apiGetStrategy = vi.fn();
 const apiValidateStrategy = vi.fn();
+const apiListStrategies = vi.fn();
+const apiDeleteStrategy = vi.fn();
+const apiGetStrategyCode = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
   compileStrategy: vi.fn(),
   getStrategy: apiGetStrategy,
   validateStrategy: apiValidateStrategy,
+  listStrategies: apiListStrategies,
+  deleteStrategy: apiDeleteStrategy,
+  getStrategyCode: apiGetStrategyCode,
   prepareBacktest: vi.fn(),
   getPrepareStatus: vi.fn(),
   executeBacktest: vi.fn(),
@@ -132,6 +138,24 @@ describe('QTSurfer.strategy', () => {
     expect(apiGetStrategy).toHaveBeenCalledWith({ path: { strategyId: SID } });
   });
 
+  it('passes `_links` through unmodified, with no unwrapping', async () => {
+    // Pins the "no machinery needed" decision: StrategyState is a direct
+    // alias of api-client's type and getStrategy returns `data` as-is, so
+    // the HAL discovery link added for `getStrategyCode` must survive
+    // untouched rather than being stripped like the instrument envelope's
+    // `_links` is in catalog.ts.
+    const state = {
+      strategyId: SID,
+      validation: 'passed',
+      _links: { code: { href: `/v1/strategy/${SID}/code` } },
+    };
+    apiGetStrategy.mockResolvedValue(ok(state));
+
+    const qts = await client();
+
+    await expect(qts.strategy(SID)).resolves.toEqual(state);
+  });
+
   it('throws QTSError carrying the HTTP status on a 404', async () => {
     apiGetStrategy.mockResolvedValue(err({ code: 404, message: 'unknown strategy' }, 404));
 
@@ -139,6 +163,97 @@ describe('QTSurfer.strategy', () => {
     const { QTSError } = await import('../../src/errors');
 
     await expect(qts.strategy(SID)).rejects.toMatchObject({
+      name: 'QTSError',
+      status: 404,
+    });
+  });
+});
+
+describe('QTSurfer.strategies', () => {
+  beforeEach(() => {
+    apiListStrategies.mockReset();
+  });
+
+  it('returns the strategies array, unwrapped from the envelope', async () => {
+    const strategies = [
+      { strategyId: SID, compiledAt: '2026-08-12T09:02:11Z', requiredSources: ['Ticker'] },
+      { strategyId: 'strat-def', compiledAt: '2026-08-19T10:15:00Z' },
+    ];
+    apiListStrategies.mockResolvedValue(ok({ strategies }));
+
+    const qts = await client();
+
+    await expect(qts.strategies()).resolves.toEqual(strategies);
+    expect(apiListStrategies).toHaveBeenCalledWith();
+  });
+
+  it('returns an empty array rather than throwing when there are none', async () => {
+    apiListStrategies.mockResolvedValue(ok({ strategies: [] }));
+
+    const qts = await client();
+
+    await expect(qts.strategies()).resolves.toEqual([]);
+  });
+
+  it('throws QTSError on a non-2xx response', async () => {
+    apiListStrategies.mockResolvedValue(err({ code: 500, message: 'boom' }, 500));
+
+    const qts = await client();
+
+    await expect(qts.strategies()).rejects.toMatchObject({
+      name: 'QTSError',
+      status: 500,
+    });
+  });
+});
+
+describe('QTSurfer.deleteStrategy', () => {
+  beforeEach(() => {
+    apiDeleteStrategy.mockReset();
+  });
+
+  it('resolves with nothing on a 200', async () => {
+    apiDeleteStrategy.mockResolvedValue(ok({ strategyId: SID, deleted: true }));
+
+    const qts = await client();
+
+    await expect(qts.deleteStrategy(SID)).resolves.toBeUndefined();
+    expect(apiDeleteStrategy).toHaveBeenCalledWith({ path: { strategyId: SID } });
+  });
+
+  it('throws QTSError carrying the HTTP status on a 404', async () => {
+    apiDeleteStrategy.mockResolvedValue(err({ code: 404, message: 'unknown strategy' }, 404));
+
+    const qts = await client();
+
+    await expect(qts.deleteStrategy(SID)).rejects.toMatchObject({
+      name: 'QTSError',
+      status: 404,
+    });
+  });
+});
+
+describe('QTSurfer.strategyCode', () => {
+  beforeEach(() => {
+    apiGetStrategyCode.mockReset();
+  });
+
+  it('returns the raw source string', async () => {
+    const code = 'package strategy;\npublic class EmaCrossStrategy { }';
+    apiGetStrategyCode.mockResolvedValue(ok({ strategyId: SID, code }));
+
+    const qts = await client();
+
+    await expect(qts.strategyCode(SID)).resolves.toBe(code);
+    expect(apiGetStrategyCode).toHaveBeenCalledWith({ path: { strategyId: SID } });
+  });
+
+  it('throws QTSError carrying the HTTP status on a 404 (unregistered or no-source-of-its-own)', async () => {
+    apiGetStrategyCode.mockResolvedValue(err({ code: 404, message: 'no source available' }, 404));
+
+    const qts = await client();
+
+    await expect(qts.strategyCode(SID)).rejects.toMatchObject({
       name: 'QTSError',
       status: 404,
     });
