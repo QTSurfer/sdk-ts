@@ -25,7 +25,12 @@ import {
   runStage,
   type StagePolicy,
 } from '../internal/polling';
-import { TICKER, compileStrategySource, prepareDataset } from '../internal/preparation';
+import {
+  TICKER,
+  compileStrategySource,
+  prepareDataset,
+  validatePrepareTarget,
+} from '../internal/preparation';
 import { requestFailed } from '../internal/requestError';
 import type { BacktestStage } from './backtest';
 
@@ -291,14 +296,35 @@ export type WalkForwardFold = ApiWalkForwardFold;
  *   objective: 'sharpe',
  * };
  * ```
+ *
+ * Sweep against a dataset you uploaded instead of an exchange instrument by
+ * replacing `instrument` with `datasetId` (and `exchangeId: 'user'`):
+ *
+ * ```ts
+ * const request: SweepRequest = {
+ *   strategy: source,
+ *   exchangeId: 'user',
+ *   datasetId: 'ds_123',
+ *   from: '2026-01-01T00:00:00Z',
+ *   to: '2026-02-01T00:00:00Z',
+ *   params: { rsiPeriod: { from: 7, to: 28, step: 1 } },
+ * };
+ * ```
  */
 export interface SweepRequest {
   /** Strategy source code (Java), compiled once and reused by every trial. */
   strategy: string;
-  /** Exchange id, e.g. `binance`. */
+  /** Exchange id, e.g. `binance`, or the reserved value `user` when sweeping against `datasetId`. */
   exchangeId: string;
-  /** Instrument symbol, e.g. `BTC/USDT`. */
-  instrument: string;
+  /** Instrument symbol, e.g. `BTC/USDT`. Exactly one of `instrument`/`datasetId` is required. */
+  instrument?: string;
+  /**
+   * Id of a dataset you uploaded, in place of `instrument`. Exactly one of
+   * `instrument`/`datasetId` is required. Pairs with `exchangeId: 'user'`.
+   */
+  datasetId?: string;
+  /** Optional specific version of `datasetId`; omit to use its current version. Requires `datasetId`. */
+  datasetVersionId?: string;
   /** Range start (ISO-8601, ISO DATE, or BASIC ISO DATE). */
   from: string;
   /** Range end (same formats as `from`; must be later than `from`). */
@@ -655,6 +681,8 @@ export async function sweep(req: SweepRequest, opts: SweepOptions = {}): Promise
  * the same way.
  */
 function validateRequest(req: SweepRequest): void {
+  validatePrepareTarget('sweep', req);
+
   const names = Object.keys(req.params ?? {});
   if (names.length === 0) {
     throw new QTSError('sweep: params must hold at least one axis');
@@ -690,7 +718,9 @@ function prepareData(
   return prepareDataset(
     {
       exchangeId: req.exchangeId,
-      instrument: req.instrument,
+      ...(req.instrument !== undefined ? { instrument: req.instrument } : {}),
+      ...(req.datasetId !== undefined ? { datasetId: req.datasetId } : {}),
+      ...(req.datasetVersionId !== undefined ? { datasetVersionId: req.datasetVersionId } : {}),
       from: req.from,
       to: req.to,
     },

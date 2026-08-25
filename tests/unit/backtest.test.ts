@@ -229,6 +229,69 @@ describe('backtest workflow', () => {
     });
   });
 
+  it('prepares against a dataset when datasetId replaces instrument, sending no instrument key', async () => {
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    getPrepareStatus.mockResolvedValue(
+      ok({ status: 'Completed', size: 1, completed: 1, cadence: '1m', gaps: 0 }),
+    );
+    executeBacktest.mockResolvedValue(ok({ jobId: 'exec-1' }));
+    getBacktestResult.mockResolvedValue(
+      ok({
+        state: { status: 'Completed', size: 1, completed: 1 },
+        results: { strategyId: 'strategy-abc', instrument: 'ds_123', pnlTotal: 1 },
+      }),
+    );
+
+    const { backtest } = await import('../../src/workflows/backtest');
+    const result = await backtest(
+      {
+        strategy: 'class S {}',
+        exchangeId: 'user',
+        datasetId: 'ds_123',
+        datasetVersionId: 'ver_1',
+        from: '2024-01-01',
+        to: '2024-01-02',
+      },
+      { pollIntervalMs: 1 },
+    );
+
+    expect(result.pnlTotal).toBe(1);
+    const call = prepareBacktest.mock.calls[0][0];
+    expect(call.body).toEqual({
+      datasetId: 'ds_123',
+      datasetVersionId: 'ver_1',
+      from: '2024-01-01',
+      to: '2024-01-02',
+    });
+    expect(call.body).not.toHaveProperty('instrument');
+  });
+
+  it('rejects a malformed instrument/datasetId combination before touching the network', async () => {
+    const { backtest } = await import('../../src/workflows/backtest');
+    const { QTSError } = await import('../../src/errors');
+
+    // Both given.
+    await expect(
+      backtest({ ...REQ, datasetId: 'ds_123' }, { pollIntervalMs: 1 }),
+    ).rejects.toBeInstanceOf(QTSError);
+    await expect(
+      backtest({ ...REQ, datasetId: 'ds_123' }, { pollIntervalMs: 1 }),
+    ).rejects.toThrow(/got both/);
+
+    // Neither given.
+    const { instrument: _instrument, ...noInstrument } = REQ;
+    await expect(backtest(noInstrument, { pollIntervalMs: 1 })).rejects.toThrow(/got neither/);
+
+    // datasetVersionId without datasetId (instrument alone is a valid target otherwise).
+    await expect(
+      backtest({ ...REQ, datasetVersionId: 'ver_1' }, { pollIntervalMs: 1 }),
+    ).rejects.toThrow(/datasetVersionId requires datasetId/);
+
+    expect(compileStrategy).not.toHaveBeenCalled();
+    expect(prepareBacktest).not.toHaveBeenCalled();
+  });
+
   it('honors AbortSignal and triggers server-side cancelBacktest when aborted during execute', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));

@@ -229,7 +229,47 @@ describe('sweep workflow', () => {
     await expect(
       sweep({ ...REQ, walkForward: { folds: 4, inSamplePct: 95 } }, FAST),
     ).rejects.toThrow(/inSamplePct/);
+
+    // Both instrument and datasetId given.
+    await expect(sweep({ ...REQ, datasetId: 'ds_123' }, FAST)).rejects.toThrow(/got both/);
+
+    // Neither given.
+    const { instrument: _instrument, ...noInstrument } = REQ;
+    await expect(sweep(noInstrument, FAST)).rejects.toThrow(/got neither/);
+
+    // datasetVersionId without datasetId.
+    await expect(
+      sweep({ ...REQ, datasetVersionId: 'ver_1' }, FAST),
+    ).rejects.toThrow(/datasetVersionId requires datasetId/);
+
     expect(compileStrategy).not.toHaveBeenCalled();
+    expect(prepareBacktest).not.toHaveBeenCalled();
+  });
+
+  it('sweeps against a dataset when datasetId replaces instrument, sending no instrument key', async () => {
+    getSweepResult.mockResolvedValue(ok(completed()));
+
+    const { sweep } = await import('../../src/workflows/sweep');
+    const { instrument: _instrument, ...noInstrument } = REQ;
+    const handle = await sweep(
+      { ...noInstrument, exchangeId: 'user', datasetId: 'ds_123', datasetVersionId: 'ver_1' },
+      FAST,
+    );
+    await handle.result;
+
+    expect(prepareBacktest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { exchangeId: 'user', type: 'ticker' },
+        body: {
+          datasetId: 'ds_123',
+          datasetVersionId: 'ver_1',
+          from: REQ.from,
+          to: REQ.to,
+        },
+      }),
+    );
+    const [call] = prepareBacktest.mock.calls[0];
+    expect(call.body).not.toHaveProperty('instrument');
   });
 
   // ---- polling the leaderboard ----

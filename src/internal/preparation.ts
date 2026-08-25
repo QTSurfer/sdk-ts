@@ -5,7 +5,7 @@ import {
   type DataSourceType,
   type PrepareJobState,
 } from '@qtsurfer/api-client';
-import { QTSCanceledError, QTSPreparationError, QTSStrategyCompileError } from '../errors';
+import { QTSCanceledError, QTSError, QTSPreparationError, QTSStrategyCompileError } from '../errors';
 import { normalizeStatus, runStage, type StagePolicy } from './polling';
 
 /** The only data source the workflows prepare against today. @internal */
@@ -45,12 +45,50 @@ export async function compileStrategySource(
   return data.strategyId;
 }
 
-/** The instrument and window one prepare covers. @internal */
+/**
+ * The instrument (or dataset) and window one prepare covers. Exactly one of
+ * `instrument`/`datasetId` is set — {@link validatePrepareTarget} enforces that
+ * before any network call. `datasetId` pairs with the reserved `exchangeId: 'user'`.
+ *
+ * @internal
+ */
 export interface PrepareTarget {
   exchangeId: string;
-  instrument: string;
+  instrument?: string;
+  /** Id of a previously uploaded dataset, in place of `instrument`. */
+  datasetId?: string;
+  /** Optional specific version of `datasetId`; requires `datasetId`. */
+  datasetVersionId?: string;
   from: string;
   to: string;
+}
+
+/**
+ * Reject a prepare target that names both, or neither, of `instrument`/`datasetId`,
+ * or that sets `datasetVersionId` without `datasetId` — the same three shapes the
+ * platform would only reject over the network. Called first thing by each workflow,
+ * before compiling the strategy, so a malformed request never reaches the network.
+ *
+ * @param workflow name of the caller, used to prefix the error message (e.g. `'backtest'`)
+ * @internal
+ */
+export function validatePrepareTarget(
+  workflow: string,
+  target: Pick<PrepareTarget, 'instrument' | 'datasetId' | 'datasetVersionId'>,
+): void {
+  const hasInstrument = target.instrument !== undefined;
+  const hasDataset = target.datasetId !== undefined;
+  if (hasInstrument && hasDataset) {
+    throw new QTSError(`${workflow}: exactly one of instrument/datasetId is required, got both`);
+  }
+  if (!hasInstrument && !hasDataset) {
+    throw new QTSError(
+      `${workflow}: exactly one of instrument/datasetId is required, got neither`,
+    );
+  }
+  if (target.datasetVersionId !== undefined && !hasDataset) {
+    throw new QTSError(`${workflow}: datasetVersionId requires datasetId`);
+  }
 }
 
 /** Reporting and cancellation for {@link prepareDataset}. @internal */
@@ -82,7 +120,15 @@ export async function prepareDataset(
 ): Promise<string> {
   const { data, error } = await prepareBacktest({
     path: { exchangeId: target.exchangeId, type: TICKER },
-    body: { instrument: target.instrument, from: target.from, to: target.to },
+    body: {
+      ...(target.instrument !== undefined ? { instrument: target.instrument } : {}),
+      ...(target.datasetId !== undefined ? { datasetId: target.datasetId } : {}),
+      ...(target.datasetVersionId !== undefined
+        ? { datasetVersionId: target.datasetVersionId }
+        : {}),
+      from: target.from,
+      to: target.to,
+    },
     ...(run.signal ? { signal: run.signal } : {}),
   });
   if (error) throw new QTSPreparationError('Prepare submission failed', error);

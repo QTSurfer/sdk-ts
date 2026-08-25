@@ -111,7 +111,8 @@ export class QTSurfer {
    * if a stage exceeds `timeoutMs`, or {@link QTSCanceledError} if the caller's
    * signal fires before the sweep is accepted. A plain {@link QTSError} means
    * the request itself is malformed (an empty grid, a non-positive `step`, a
-   * walk-forward block with fewer than two folds) and never reached the network.
+   * walk-forward block with fewer than two folds, or naming both/neither of
+   * `instrument`/`datasetId`) and never reached the network.
    *
    * What the sweep *found* arrives through {@link Sweep.result}, which is also
    * where the semantics of the leaderboard are documented. Acceptance already

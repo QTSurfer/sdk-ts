@@ -1,5 +1,27 @@
 # @qtsurfer/sdk
 
+## 0.10.0
+
+### Minor Changes
+
+- `backtest()` and `sweep()` can now run against a dataset you uploaded, not just an exchange instrument.
+
+  On both `BacktestRequest` and `SweepRequest`, `instrument` is now optional and two new optional fields join it: `datasetId` and `datasetVersionId`. Send `datasetId` in place of `instrument` (paired with the reserved `exchangeId: 'user'`) to run against your own uploaded data; `datasetVersionId` optionally pins a specific past version, defaulting to the dataset's current one when omitted.
+
+  ```ts
+  await qts.backtest({
+    strategy: source,
+    exchangeId: "user",
+    datasetId: "ds_123",
+    from: "2026-01-01T00:00:00Z",
+    to: "2026-02-01T00:00:00Z",
+  });
+  ```
+
+  Exactly one of `instrument`/`datasetId` is required: naming both, naming neither, or sending `datasetVersionId` without `datasetId` throws a plain `QTSError` before either workflow makes a network call — the same client-side validation `sweep()` already does for an empty grid or a non-positive `step`.
+
+  This release does not add dataset management (create/list/get/delete/finalize-upload) to this SDK — those six operations are reachable only through `@qtsurfer/api-client`'s generated functions directly until a future release wraps them.
+
 ## 0.9.0
 
 ### Minor Changes

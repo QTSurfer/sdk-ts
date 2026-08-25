@@ -15,15 +15,47 @@ import {
   TICKER,
   compileStrategySource,
   prepareDataset,
+  validatePrepareTarget,
 } from '../internal/preparation';
 
+/**
+ * ```ts
+ * const request: BacktestRequest = {
+ *   strategy: source,
+ *   exchangeId: 'binance',
+ *   instrument: 'BTC/USDT',
+ *   from: '2026-01-01T00:00:00Z',
+ *   to: '2026-02-01T00:00:00Z',
+ * };
+ * ```
+ *
+ * Backtest against a dataset you uploaded instead of an exchange instrument by
+ * replacing `instrument` with `datasetId` (and `exchangeId: 'user'`):
+ *
+ * ```ts
+ * const request: BacktestRequest = {
+ *   strategy: source,
+ *   exchangeId: 'user',
+ *   datasetId: 'ds_123',
+ *   from: '2026-01-01T00:00:00Z',
+ *   to: '2026-02-01T00:00:00Z',
+ * };
+ * ```
+ */
 export interface BacktestRequest {
   /** Strategy source code (Java) */
   strategy: string;
-  /** Exchange id, e.g. `binance` */
+  /** Exchange id, e.g. `binance`, or the reserved value `user` when backtesting against `datasetId`. */
   exchangeId: string;
-  /** Instrument symbol, e.g. `BTC/USDT` */
-  instrument: string;
+  /** Instrument symbol, e.g. `BTC/USDT`. Exactly one of `instrument`/`datasetId` is required. */
+  instrument?: string;
+  /**
+   * Id of a dataset you uploaded, in place of `instrument`. Exactly one of
+   * `instrument`/`datasetId` is required. Pairs with `exchangeId: 'user'`.
+   */
+  datasetId?: string;
+  /** Optional specific version of `datasetId`; omit to use its current version. Requires `datasetId`. */
+  datasetVersionId?: string;
   /** Date range start (ISO-8601, ISO DATE or BASIC ISO DATE) */
   from: string;
   /** Date range end (same formats as `from`) */
@@ -78,6 +110,7 @@ export async function backtest(
   req: BacktestRequest,
   opts: BacktestOptions = {},
 ): Promise<BacktestResult> {
+  validatePrepareTarget('backtest', req);
   const policy = buildStagePolicy(opts, DEFAULT_POLL_INTERVAL_MS, DEFAULT_MAX_POLL_INTERVAL_MS);
 
   // 1. Compile strategy (single synchronous request)
@@ -101,7 +134,9 @@ function prepareData(
   return prepareDataset(
     {
       exchangeId: req.exchangeId,
-      instrument: req.instrument,
+      ...(req.instrument !== undefined ? { instrument: req.instrument } : {}),
+      ...(req.datasetId !== undefined ? { datasetId: req.datasetId } : {}),
+      ...(req.datasetVersionId !== undefined ? { datasetVersionId: req.datasetVersionId } : {}),
       from: req.from,
       to: req.to,
     },
