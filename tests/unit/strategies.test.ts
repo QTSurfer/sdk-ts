@@ -41,6 +41,20 @@ async function client() {
   return new QTSurfer({ baseUrl: 'https://example.test/v1' });
 }
 
+describe('QTSurfer.compile', () => {
+  it('preserves declared properties from the compile response', async () => {
+    const api = await import('@qtsurfer/api-client');
+    const compile = api.compileStrategy as ReturnType<typeof vi.fn>;
+    compile.mockResolvedValue(ok({ strategyId: SID, declaredProperties: [{ name: 'rsi.period', min: 2 }] }));
+    const qts = await client();
+    await expect(qts.compile('class S {}')).resolves.toEqual({
+      strategyId: SID,
+      declaredProperties: [{ name: 'rsi.period', min: 2 }],
+    });
+    expect(compile).toHaveBeenCalledWith({ body: 'class S {}' });
+  });
+});
+
 describe('QTSurfer.validateStrategy', () => {
   beforeEach(() => {
     apiValidateStrategy.mockReset();

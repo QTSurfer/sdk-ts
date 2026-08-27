@@ -267,10 +267,9 @@ it. It is idempotent and has **two outcomes**, which the SDK keeps distinct.
 
 The `strategyId` is the one returned when the source was compiled and registered. This SDK does not
 surface compilation on its own — `backtest()` and `sweep()` each do it internally and keep the id —
-so obtain it from `compileStrategy()` in
-[`@qtsurfer/api-client`](https://github.com/QTSurfer/api-client-ts) if you need to validate a
-strategy before running it. That is a real difference between the two SDKs rather than an oversight
-in either: the Java SDK exposes a standalone `compile(...)`, and this one does not.
+so obtain it with `qts.compile(source)` if you need to validate a strategy before running it.
+The response includes `declaredProperties`, a best-effort vocabulary of parameter keys that can
+catch a typo before you submit a sweep.
 
 ```ts
 const outcome = await qts.validateStrategy(strategyId);
@@ -340,9 +339,32 @@ fetches by id. It is absent from `validateStrategy()`'s `queued: true` (`202`) o
 deliberately partial stub. The SDK does not follow this link for you; it passes through unmodified
 from api-client, so read it off `StrategyState` directly if you want it.
 
+## Datasets and uploads
+
+Create a dataset to obtain a short-lived, presigned upload URL. Upload the raw
+CSV without an API authorization header, then finalize it to queue ingestion.
+`datasetUpload()` reports the ingestion result; only a successfully ingested
+version can be prepared with `exchangeId: 'user'`.
+
+```ts
+const upload = await qts.createDataset({
+  name: 'my-btc-tickers',
+  instrument: 'BTC/USDT',
+});
+await qts.uploadDatasetFile(upload, csvText);
+const { jobId } = await qts.finalizeDatasetUpload(upload.datasetId, upload.uploadId);
+const state = await qts.datasetUpload(upload.datasetId, upload.uploadId);
+```
+
+`datasets()`, `dataset(id)` and `deleteDataset(id)` manage dataset metadata.
+Deletion hides the dataset from future use but does not change backtests that
+already ran against it. A failed PUT leaves nothing to finalize; a `404` from
+`finalizeDatasetUpload()` means the upload session is unknown or has no object
+at its presigned URL.
+
 ## API coverage
 
-Measured against **API spec 0.109.2**: 21 operations, all 21 reachable from this SDK.
+Measured against **API spec 0.110.3**: 28 operations, all 28 reachable from this SDK.
 
 It exists because the generated `@qtsurfer/api-client` tracks the spec automatically and this
 hand-written layer does not, so an operation the platform serves could otherwise have no way in
@@ -354,8 +376,10 @@ deliberately does not wrap it, the row says why.
 There are two ways an operation is reached:
 
 - **Direct** — callable on its own, without running a workflow. The client methods below
-  (`exchanges`, `instruments`, `tickers`, `klines`, `validateStrategy`, `strategy`, `strategies`,
-  `deleteStrategy`, `strategyCode`) exist on `QTSurfer` and, identically, on the authenticated
+  (`exchanges`, `instruments`, `tickers`, `klines`, `datasets`, `createDataset`, `dataset`,
+  `deleteDataset`, `uploadDatasetFile`, `finalizeDatasetUpload`, `datasetUpload`,
+  `validateStrategy`, `strategy`, `strategies`, `deleteStrategy`, `strategyCode`) exist on
+  `QTSurfer` and, identically, on the authenticated
   session. The remaining direct rows are reached
   otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
   `Sweep.*` entries live on the handle `sweep()` hands back and, being handle-scoped, sit outside
@@ -377,7 +401,7 @@ There are two ways an operation is reached:
 | `downloadTickers` | Direct — `tickers(...)` |
 | `downloadKlines` | Direct — `klines(...)` |
 | `listStrategies` | Direct — `strategies()` |
-| `compileStrategy` | Via workflow — inside `backtest(...)` / `sweep(...)`; no standalone method, unlike the Java SDK |
+| `compileStrategy` | Direct — `compile(source)`; also used inside `backtest(...)` / `sweep(...)` |
 | `validateStrategy` | Direct — `validateStrategy(strategyId)` |
 | `getStrategy` | Direct — `strategy(strategyId)` |
 | `deleteStrategy` | Direct — `deleteStrategy(strategyId)` |
@@ -391,6 +415,13 @@ There are two ways an operation is reached:
 | `getSweepResult` | Via workflow (the background poll behind `Sweep.result`) and direct — `Sweep.results(view?)` re-reads the same sweep under another view |
 | `cancelSweep` | Direct — the `signal` option on `SweepOptions` |
 | `getSweepSensitivity` | Direct — `Sweep.sensitivity(objective?)` |
+| `getSweepRunEquityCurve` | Direct — `Sweep.equityCurve(runIx, options?)` |
+| `listDatasets` | Direct — `datasets()` |
+| `createDataset` | Direct — `createDataset()` then `uploadDatasetFile()` / `finalizeDatasetUpload()` |
+| `deleteDataset` | Direct — `deleteDataset()` |
+| `getDataset` | Direct — `dataset()` |
+| `finalizeDatasetUpload` | Direct — `finalizeDatasetUpload()` |
+| `getDatasetUpload` | Direct — `datasetUpload()` |
 
 ## Error hierarchy
 

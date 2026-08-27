@@ -22,6 +22,21 @@ import {
   downloadTickers,
 } from '../workflows/downloads';
 import {
+  createDataset,
+  deleteDataset,
+  finalizeDatasetUpload,
+  getDataset,
+  getDatasetUpload,
+  listDatasets,
+  uploadDatasetFile,
+  type CreateDatasetRequest,
+  type Dataset,
+  type DatasetDetail,
+  type DatasetUpload,
+  type DatasetUploadState,
+} from '../workflows/datasets';
+import {
+  compileStrategy,
   getStrategy,
   validateStrategy as runValidateStrategy,
   listStrategies,
@@ -30,6 +45,7 @@ import {
   type StrategyState,
   type StrategyValidation,
   type StrategySummary,
+  type CompiledStrategy,
 } from '../workflows/strategies';
 import {
   sweep as runSweep,
@@ -220,6 +236,46 @@ export class AuthenticatedClient {
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return this.withRefreshOn401(() => listInstruments(exchangeId, segment));
+  }
+
+  /** Compile and register source, returning its id and declared parameter hints. */
+  compile(source: string): Promise<CompiledStrategy> {
+    return this.withRefreshOn401(() => compileStrategy(source));
+  }
+
+  /** List datasets owned by the authenticated caller. Refreshes once on 401. */
+  datasets(): Promise<Dataset[]> {
+    return this.withRefreshOn401(() => listDatasets());
+  }
+
+  /** Create a dataset and return its one-time presigned upload session. */
+  createDataset(request: CreateDatasetRequest): Promise<DatasetUpload> {
+    return this.withRefreshOn401(() => createDataset(request));
+  }
+
+  /** Read a dataset and its current-version metadata. Refreshes once on 401. */
+  dataset(datasetId: string): Promise<DatasetDetail> {
+    return this.withRefreshOn401(() => getDataset(datasetId));
+  }
+
+  /** Soft-delete a dataset. Refreshes once on 401. */
+  deleteDataset(datasetId: string): Promise<void> {
+    return this.withRefreshOn401(() => deleteDataset(datasetId));
+  }
+
+  /** PUT raw CSV bytes to the upload session's presigned URL. */
+  uploadDatasetFile(upload: DatasetUpload, file: BodyInit): Promise<void> {
+    return uploadDatasetFile(upload, file, this.fetchImpl);
+  }
+
+  /** Queue ingest after upload succeeds. Refreshes once on 401. */
+  finalizeDatasetUpload(datasetId: string, uploadId: string): Promise<{ jobId: string }> {
+    return this.withRefreshOn401(() => finalizeDatasetUpload(datasetId, uploadId));
+  }
+
+  /** Read ingestion state for one upload session. Refreshes once on 401. */
+  datasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
+    return this.withRefreshOn401(() => getDatasetUpload(datasetId, uploadId));
   }
 
   /**

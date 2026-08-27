@@ -2,6 +2,7 @@ import {
   cancelBacktest,
   executeBacktest,
   getBacktestResult,
+  type EquityCurveOptions,
   type ResultMap,
 } from '@qtsurfer/api-client';
 import { QTSCanceledError, QTSExecutionError } from '../errors';
@@ -62,6 +63,8 @@ export interface BacktestRequest {
   to: string;
   /** When true, the worker uploads emitted signals to object storage. */
   storeSignals?: boolean;
+  /** Optional server-side transform for the returned equity curve. */
+  equityCurve?: EquityCurveOptions;
 }
 
 /**
@@ -170,6 +173,7 @@ async function executeStrategy(
       prepareJobId,
       strategyId,
       ...(req.storeSignals !== undefined ? { storeSignals: req.storeSignals } : {}),
+      ...(req.equityCurve !== undefined ? { equityCurve: req.equityCurve } : {}),
     },
     ...(opts.signal ? { signal: opts.signal } : {}),
   });

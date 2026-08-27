@@ -48,11 +48,19 @@ export type {
 } from './workflows/sweep';
 export type { DownloadFormat } from './workflows/downloads';
 export type {
+  CreateDatasetRequest,
+  Dataset,
+  DatasetDetail,
+  DatasetUpload,
+  DatasetUploadState,
+} from './workflows/datasets';
+export type {
   Exchange,
   InstrumentDetail,
   InstrumentSegment,
 } from './workflows/catalog';
 export type {
+  CompiledStrategy,
   StrategyState,
   StrategyValidation,
   StrategySummary,

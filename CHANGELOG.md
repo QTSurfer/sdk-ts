@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.11.0
+
+### Minor Changes
+
+- Add dataset creation, upload, ingestion, lookup, and deletion methods, plus equity-curve controls for backtests and sweeps.
+
 ## 0.10.0
 
 ### Minor Changes

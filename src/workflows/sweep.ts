@@ -3,6 +3,10 @@ import {
   executeSweep,
   getSweepResult,
   getSweepSensitivity,
+  getSweepRunEquityCurve,
+  type EquityCurveRequest,
+  type EquityCurveOptions,
+  type EquityCurveResult,
   type ExecuteSweepAccepted,
   type ExecuteSweepRequest,
   type ExecuteSweepResult,
@@ -357,6 +361,8 @@ export interface SweepRequest {
    * shape of the answer. Omit to run an ordinary sweep.
    */
   walkForward?: SweepWalkForward;
+  /** Which trial curves to retain and how their points are transformed. */
+  equityCurve?: EquityCurveRequest;
 }
 
 /**
@@ -483,6 +489,8 @@ export interface Sweep {
    *   {@link Sweep.result}.
    */
   readonly accepted: SweepAccepted;
+  /** Fetch a retained trial curve. A 404 means the run did not retain one. */
+  equityCurve(runIx: number, options?: EquityCurveOptions): Promise<EquityCurveResult>;
   /**
    * Local snapshot of the sweep lifecycle; reading it does not contact the
    * server.
@@ -747,8 +755,8 @@ function buildSweepBody(req: SweepRequest, strategyId: string): ExecuteSweepRequ
   if (req.samples !== undefined) spec.samples = req.samples;
   if (req.seed !== undefined) spec.seed = req.seed;
   if (req.objective !== undefined) spec.objective = req.objective;
-
   const body: ExecuteSweepRequest = { strategyId, sweep: spec };
+  if (req.equityCurve !== undefined) body.equityCurve = req.equityCurve;
   if (req.walkForward) {
     body.walkForward = {
       folds: req.walkForward.folds,
@@ -832,6 +840,15 @@ function createHandle(
     requestId,
     strategyId,
     accepted,
+    equityCurve: async (runIx, options = {}) => {
+      const res = await getSweepRunEquityCurve({
+        path: { ...path, runIx },
+        ...(Object.keys(options).length > 0 ? { query: options } : {}),
+      });
+      if (res.error) throw requestFailed('sweep equity curve call', res.error, res.response?.status);
+      if (!res.data) throw new QTSError('Empty sweep equity curve response');
+      return res.data;
+    },
     get state() {
       return state;
     },

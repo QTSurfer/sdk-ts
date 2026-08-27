@@ -6,6 +6,7 @@ const getPrepareStatus = vi.fn();
 const executeSweep = vi.fn();
 const getSweepResult = vi.fn();
 const getSweepSensitivity = vi.fn();
+const getSweepRunEquityCurve = vi.fn();
 const cancelSweep = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
@@ -16,6 +17,7 @@ vi.mock('@qtsurfer/api-client', () => ({
   executeSweep,
   getSweepResult,
   getSweepSensitivity,
+  getSweepRunEquityCurve,
   cancelSweep,
 }));
 
@@ -121,6 +123,7 @@ describe('sweep workflow', () => {
       executeSweep,
       getSweepResult,
       getSweepSensitivity,
+      getSweepRunEquityCurve,
       cancelSweep,
     ].forEach((m) => m.mockReset());
     stubPipeline();
@@ -597,5 +600,21 @@ describe('sweep workflow', () => {
     const failure = await handle.sensitivity().catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(QTSError);
     expect(failure).toMatchObject({ status: 404 });
+  });
+
+  it('reads a retained run curve with caller-supplied transform options', async () => {
+    getSweepRunEquityCurve.mockResolvedValue(ok({
+      meta: { inputPointCount: 3, outputPointCount: 3, resampled: false, differential: false, outMode: 'ARRAY' },
+      points: [{ timestamp: 1, equity: 100 }],
+    }));
+    const { sweep } = await import('../../src/workflows/sweep');
+    const handle = await sweep(REQ, FAST);
+    await expect(handle.equityCurve(3, { outMode: 'ARRAY', resample: 100 })).resolves.toMatchObject({
+      meta: { outMode: 'ARRAY' },
+    });
+    expect(getSweepRunEquityCurve).toHaveBeenCalledWith({
+      path: { exchangeId: 'binance', type: 'ticker', requestId: 'prep-1', sweepId: 'swp-1', runIx: 3 },
+      query: { outMode: 'ARRAY', resample: 100 },
+    });
   });
 });

@@ -18,6 +18,21 @@ import {
   type DownloadFormat,
 } from './workflows/downloads';
 import {
+  createDataset,
+  deleteDataset,
+  finalizeDatasetUpload,
+  getDataset,
+  getDatasetUpload,
+  listDatasets,
+  uploadDatasetFile,
+  type CreateDatasetRequest,
+  type Dataset,
+  type DatasetDetail,
+  type DatasetUpload,
+  type DatasetUploadState,
+} from './workflows/datasets';
+import {
+  compileStrategy,
   getStrategy,
   validateStrategy as runValidateStrategy,
   listStrategies,
@@ -26,6 +41,7 @@ import {
   type StrategyState,
   type StrategyValidation,
   type StrategySummary,
+  type CompiledStrategy,
 } from './workflows/strategies';
 import {
   sweep as runSweep,
@@ -73,7 +89,10 @@ export interface DownloadHourArgs {
  * this constructor unless you already manage the JWT lifecycle yourself.
  */
 export class QTSurfer {
+  private readonly fetchImpl: typeof fetch | undefined;
+
   constructor(options: QTSurferOptions) {
+    this.fetchImpl = options.fetch;
     apiClient.setConfig({
       baseUrl: options.baseUrl,
       ...(options.token
@@ -180,6 +199,46 @@ export class QTSurfer {
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return listInstruments(exchangeId, segment);
+  }
+
+  /** Compile and register source, returning its id and declared parameter hints. */
+  compile(source: string): Promise<CompiledStrategy> {
+    return compileStrategy(source);
+  }
+
+  /** List datasets owned by the authenticated caller. */
+  datasets(): Promise<Dataset[]> {
+    return listDatasets();
+  }
+
+  /** Create a dataset and return the one-time presigned upload session. */
+  createDataset(request: CreateDatasetRequest): Promise<DatasetUpload> {
+    return createDataset(request);
+  }
+
+  /** Read one dataset and its current-version metadata. */
+  dataset(datasetId: string): Promise<DatasetDetail> {
+    return getDataset(datasetId);
+  }
+
+  /** Soft-delete a dataset. Existing backtests remain unaffected. */
+  deleteDataset(datasetId: string): Promise<void> {
+    return deleteDataset(datasetId);
+  }
+
+  /** PUT raw CSV bytes to a dataset upload session's presigned URL. */
+  uploadDatasetFile(upload: DatasetUpload, file: BodyInit): Promise<void> {
+    return uploadDatasetFile(upload, file, this.fetchImpl);
+  }
+
+  /** Queue ingest after the upload PUT succeeds; poll {@link QTSurfer.datasetUpload}. */
+  finalizeDatasetUpload(datasetId: string, uploadId: string): Promise<{ jobId: string }> {
+    return finalizeDatasetUpload(datasetId, uploadId);
+  }
+
+  /** Read ingestion state for one upload session. */
+  datasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
+    return getDatasetUpload(datasetId, uploadId);
   }
 
   /**

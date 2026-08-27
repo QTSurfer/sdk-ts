@@ -1,4 +1,5 @@
 import {
+  compileStrategy as apiCompileStrategy,
   getStrategy as apiGetStrategy,
   validateStrategy as apiValidateStrategy,
   listStrategies as apiListStrategies,
@@ -6,6 +7,7 @@ import {
   getStrategyCode as apiGetStrategyCode,
   type StrategyState as ApiStrategyState,
   type StrategySummary as ApiStrategySummary,
+  type DeclaredProperty,
 } from '@qtsurfer/api-client';
 import { QTSError } from '../errors';
 import { requestFailed } from '../internal/requestError';
@@ -43,6 +45,20 @@ import { requestFailed } from '../internal/requestError';
  * unmodified from api-client, so it needs no unwrapping on the SDK's part.
  */
 export type StrategyState = ApiStrategyState;
+
+/** Result of compiling source, including the best-effort parameter vocabulary. */
+export interface CompiledStrategy {
+  strategyId: string;
+  declaredProperties?: DeclaredProperty[];
+}
+
+/** Compile and register strategy source without starting a backtest or sweep. */
+export async function compileStrategy(source: string): Promise<CompiledStrategy> {
+  const { data, error, response } = await apiCompileStrategy({ body: source });
+  if (error) throw requestFailed('strategy compilation request', error, response?.status);
+  if (!data?.strategyId) throw new QTSError('Compile response missing strategyId');
+  return data;
+}
 
 /**
  * Outcome of {@link QTSurfer.validateStrategy} — the SDK's rendering of the
