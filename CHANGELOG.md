@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.12.0
+
+### Minor Changes
+
+- [`73b8bdc`](https://github.com/QTSurfer/sdk-ts/commit/73b8bdc21adcb982b9d24a73e8c0547d1b480282) Thanks [@mrmx](https://github.com/mrmx)! - Add renewable dataset upload sessions for later dataset versions.
+
 ## 0.11.0
 
 ### Minor Changes
