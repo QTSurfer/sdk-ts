@@ -37,7 +37,7 @@ import { requestFailed } from '../internal/requestError';
  *
  * `_links.code`, when present, is a discovery link to this strategy's raw
  * source (`GET /strategy/{strategyId}/code` — the same thing
- * {@link QTSurfer.strategyCode} fetches by id, so there is no need to follow
+ * {@link QTSurfer.getStrategyCode} fetches by id, so there is no need to follow
  * the link yourself). It is present on a full `StrategyState` body — this
  * function's result, and {@link QTSurfer.validateStrategy}'s already-validated
  * `200` — and **absent** from that same operation's `queued: true` (`202`)
@@ -71,7 +71,7 @@ export async function compileStrategy(source: string): Promise<CompiledStrategy>
  *   still be running, so read `state.validation` rather than treating
  *   `queued: false` as "there is an answer".
  * - `queued: true` — a check was just queued. Nothing is known yet; poll
- *   {@link QTSurfer.strategy} until `validation` leaves `'pending'`.
+ *   {@link QTSurfer.getStrategy} until `validation` leaves `'pending'`.
  */
 export type StrategyValidation =
   | { queued: false; strategyId: string; state: StrategyState }
@@ -85,7 +85,7 @@ export type StrategyValidation =
  * **Idempotent, and two-outcome.** If a verdict already exists for the
  * current compilation it is returned unchanged and nothing is queued
  * (`queued: false`); otherwise a check is queued (`queued: true`) and this
- * call is *not* terminal — poll {@link QTSurfer.strategy} until `validation`
+ * call is *not* terminal — poll {@link QTSurfer.getStrategy} until `validation`
  * is `'passed'` or `'failed'`. Because a `queued: false` answer can itself carry
  * `validation: 'pending'` (a check an earlier call queued), the discriminant
  * tells you whether work was *started*, not whether a verdict *exists*;
@@ -147,11 +147,11 @@ export async function getStrategy(strategyId: string): Promise<StrategyState> {
 }
 
 /**
- * One entry in {@link QTSurfer.strategies}'s result: the same provenance
- * {@link QTSurfer.strategy} reports — `compiledAt`, `requiredSources` — but
+ * One entry in {@link QTSurfer.listStrategies}'s result: the same provenance
+ * {@link QTSurfer.getStrategy} reports — `compiledAt`, `requiredSources` — but
  * never `validation`, which is what keeps listing cheap no matter how many
  * strategies you have registered. Check a specific strategy's verdict with
- * {@link QTSurfer.strategy}.
+ * {@link QTSurfer.getStrategy}.
  *
  * Note: the spec types this endpoint's `requiredSources` as a plain
  * `string[]`, not the `'Ticker' | 'KLine' | 'FundingRate'` union that
@@ -167,7 +167,7 @@ export type StrategySummary = ApiStrategySummary;
  * **Never `404`.** An empty array means you have none registered — not an
  * error. Each entry omits `validation` on purpose (see {@link
  * StrategySummary}); check a specific strategy's verdict with {@link
- * QTSurfer.strategy}.
+ * QTSurfer.getStrategy}.
  *
  * @throws QTSError on any non-2xx response, with the HTTP status on `status`.
  */
@@ -180,7 +180,7 @@ export async function listStrategies(): Promise<StrategySummary[]> {
 
 /**
  * Release a registered strategy: removes it from both {@link
- * QTSurfer.strategy} and {@link QTSurfer.strategies}.
+ * QTSurfer.getStrategy} and {@link QTSurfer.listStrategies}.
  *
  * **Does not undo anything already run.** Backtests you ran against this
  * strategy before deleting it are completely unaffected — deleting only

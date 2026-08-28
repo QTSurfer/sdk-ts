@@ -28,19 +28,19 @@ function err(payload: unknown, status = 404) {
   };
 }
 
-describe('QTSurfer.tickers / klines', () => {
+describe('QTSurfer.downloadTickers / downloadKlines', () => {
   beforeEach(() => {
     apiDownloadTickers.mockReset();
     apiDownloadKlines.mockReset();
   });
 
-  it('tickers() defaults to lastra and returns the Blob', async () => {
+  it('downloadTickers() defaults to lastra and returns the Blob', async () => {
     const blob = new Blob(['LASTRA'], { type: 'application/vnd.lastra' });
     apiDownloadTickers.mockResolvedValue(ok(blob));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
-    const out = await qts.tickers({
+    const out = await qts.downloadTickers({
       exchangeId: 'binance',
       base: 'BTC',
       quote: 'USDT',
@@ -55,12 +55,12 @@ describe('QTSurfer.tickers / klines', () => {
     });
   });
 
-  it('tickers() forwards format=parquet when requested', async () => {
+  it('downloadTickers() forwards format=parquet when requested', async () => {
     apiDownloadTickers.mockResolvedValue(ok(new Blob(['ok'])));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
-    await qts.tickers({
+    await qts.downloadTickers({
       exchangeId: 'binance',
       base: 'BTC',
       quote: 'USDT',
@@ -74,12 +74,12 @@ describe('QTSurfer.tickers / klines', () => {
     });
   });
 
-  it('klines() routes to downloadKlines', async () => {
+  it('downloadKlines() routes to downloadKlines', async () => {
     apiDownloadKlines.mockResolvedValue(ok(new Blob(['ok'])));
 
     const { QTSurfer } = await import('../../src/client');
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
-    await qts.klines({
+    await qts.downloadKlines({
       exchangeId: 'binance',
       base: 'BTC',
       quote: 'USDT',
@@ -103,7 +103,7 @@ describe('QTSurfer.tickers / klines', () => {
     const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
 
     await expect(
-      qts.tickers({
+      qts.downloadTickers({
         exchangeId: 'binance',
         base: 'BTC',
         quote: 'USDT',
@@ -115,7 +115,7 @@ describe('QTSurfer.tickers / klines', () => {
     });
 
     await expect(
-      qts.tickers({
+      qts.downloadTickers({
         exchangeId: 'binance',
         base: 'BTC',
         quote: 'USDT',

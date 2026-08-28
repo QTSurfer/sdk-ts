@@ -24,11 +24,13 @@ import {
   getDataset,
   getDatasetUpload,
   listDatasets,
+  openDatasetUpload,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
   type DatasetDetail,
   type DatasetUpload,
+  type DatasetUploadSession,
   type DatasetUploadState,
 } from './workflows/datasets';
 import {
@@ -80,9 +82,9 @@ export interface DownloadHourArgs {
 
 /**
  * Thin, stateless wrapper over `@qtsurfer/api-client` that exposes the SDK's
- * workflow methods (`backtest`, `sweep`, `tickers`, `klines`), the platform catalog
- * (`exchanges`, `instruments`) and the strategy surface (`validateStrategy`,
- * `strategy`, `strategies`, `deleteStrategy`, `strategyCode`). Constructing an
+ * workflow methods (`backtest`, `sweep`, `downloadTickers`, `downloadKlines`), the platform catalog
+ * (`listExchanges`, `listInstruments`) and the strategy surface (`compileStrategy`,
+ * `validateStrategy`, `getStrategy`, `listStrategies`, `deleteStrategy`, `getStrategyCode`). Constructing an
  * instance reconfigures the underlying api-client singleton, so avoid
  * holding two `QTSurfer`s with different `baseUrl`s or tokens alive in the
  * same process — they will race. Prefer the `authenticate()` helper over
@@ -159,12 +161,12 @@ export class QTSurfer {
    * Download one hour of raw tickers for an instrument as a {@link Blob}.
    * Defaults to Lastra; pass `{ format: 'parquet' }` for Parquet.
    */
-  tickers(args: DownloadHourArgs): Promise<Blob> {
+  downloadTickers(args: DownloadHourArgs): Promise<Blob> {
     return downloadTickers(args);
   }
 
   /** Download one hour of klines for an instrument as a {@link Blob}. */
-  klines(args: DownloadHourArgs): Promise<Blob> {
+  downloadKlines(args: DownloadHourArgs): Promise<Blob> {
     return downloadKlines(args);
   }
 
@@ -175,7 +177,7 @@ export class QTSurfer {
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  exchanges(): Promise<Exchange[]> {
+  listExchanges(): Promise<Exchange[]> {
     return listExchanges();
   }
 
@@ -194,7 +196,7 @@ export class QTSurfer {
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  instruments(
+  listInstruments(
     exchangeId: string,
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
@@ -202,12 +204,12 @@ export class QTSurfer {
   }
 
   /** Compile and register source, returning its id and declared parameter hints. */
-  compile(source: string): Promise<CompiledStrategy> {
+  compileStrategy(source: string): Promise<CompiledStrategy> {
     return compileStrategy(source);
   }
 
   /** List datasets owned by the authenticated caller. */
-  datasets(): Promise<Dataset[]> {
+  listDatasets(): Promise<Dataset[]> {
     return listDatasets();
   }
 
@@ -217,7 +219,7 @@ export class QTSurfer {
   }
 
   /** Read one dataset and its current-version metadata. */
-  dataset(datasetId: string): Promise<DatasetDetail> {
+  getDataset(datasetId: string): Promise<DatasetDetail> {
     return getDataset(datasetId);
   }
 
@@ -227,17 +229,22 @@ export class QTSurfer {
   }
 
   /** PUT raw CSV bytes to a dataset upload session's presigned URL. */
-  uploadDatasetFile(upload: DatasetUpload, file: BodyInit): Promise<void> {
+  uploadDatasetFile(upload: DatasetUploadSession, file: BodyInit): Promise<void> {
     return uploadDatasetFile(upload, file, this.fetchImpl);
   }
 
-  /** Queue ingest after the upload PUT succeeds; poll {@link QTSurfer.datasetUpload}. */
+  /** Open or recover an upload session for another version of a dataset. */
+  openDatasetUpload(datasetId: string): Promise<DatasetUploadSession> {
+    return openDatasetUpload(datasetId);
+  }
+
+  /** Queue ingest after the upload PUT succeeds; poll {@link QTSurfer.getDatasetUpload}. */
   finalizeDatasetUpload(datasetId: string, uploadId: string): Promise<{ jobId: string }> {
     return finalizeDatasetUpload(datasetId, uploadId);
   }
 
   /** Read ingestion state for one upload session. */
-  datasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
+  getDatasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
     return getDatasetUpload(datasetId, uploadId);
   }
 
@@ -250,7 +257,7 @@ export class QTSurfer {
    * **Idempotent, and two-outcome.** `queued: false` means a verdict already
    * existed for the current compilation and came back unchanged in `state` —
    * nothing was queued. `queued: true` means a check was just started, and is
-   * **not** terminal: poll {@link QTSurfer.strategy} until `validation`
+   * **not** terminal: poll {@link QTSurfer.getStrategy} until `validation`
    * leaves `'pending'`. The discriminant reports whether work was *started*,
    * not whether a verdict *exists*, because a `queued: false` answer can
    * itself carry `validation: 'pending'` from a check an earlier call queued;
@@ -292,7 +299,7 @@ export class QTSurfer {
    * means exactly one thing — no such registered strategy for this caller.
    * It is never a stale or expired answer.
    */
-  strategy(strategyId: string): Promise<StrategyState> {
+  getStrategy(strategyId: string): Promise<StrategyState> {
     return getStrategy(strategyId);
   }
 
@@ -300,18 +307,18 @@ export class QTSurfer {
    * List every strategy you have registered and not deleted, most recently
    * compiled first. Never `404`s — an empty array means you have none.
    * Each entry deliberately omits `validation`; check a specific strategy's
-   * verdict with {@link QTSurfer.strategy}. See {@link StrategySummary}.
+   * verdict with {@link QTSurfer.getStrategy}. See {@link StrategySummary}.
    *
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  strategies(): Promise<StrategySummary[]> {
+  listStrategies(): Promise<StrategySummary[]> {
     return listStrategies();
   }
 
   /**
    * Release a registered strategy: removes it from both {@link
-   * QTSurfer.strategy} and {@link QTSurfer.strategies}.
+   * QTSurfer.getStrategy} and {@link QTSurfer.listStrategies}.
    *
    * Backtests already run against this strategy are unaffected, and
    * re-submitting the same source afterwards registers a **new** strategy
@@ -337,7 +344,7 @@ export class QTSurfer {
    *
    * @param strategyId the id returned when the strategy was compiled
    */
-  strategyCode(strategyId: string): Promise<string> {
+  getStrategyCode(strategyId: string): Promise<string> {
     return getStrategyCode(strategyId);
   }
 

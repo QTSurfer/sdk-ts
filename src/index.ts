@@ -52,6 +52,7 @@ export type {
   Dataset,
   DatasetDetail,
   DatasetUpload,
+  DatasetUploadSession,
   DatasetUploadState,
 } from './workflows/datasets';
 export type {

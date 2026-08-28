@@ -3,13 +3,24 @@
 <p align="center">
   <a href="https://github.com/QTSurfer/sdk-ts/actions/workflows/ci.yml"><img src="https://github.com/QTSurfer/sdk-ts/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.npmjs.com/package/@qtsurfer/sdk"><img src="https://img.shields.io/npm/v/@qtsurfer/sdk" alt="npm"></a>
-  <a href="https://qtsurfer.github.io/sdk-ts/"><img src="https://img.shields.io/badge/docs-typedoc-blue" alt="TypeDoc"></a>
+  <a href="https://qtsurfer.github.io/sdk-ts/"><img src="https://img.shields.io/badge/API-TypeDoc-blue" alt="TypeDoc"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
 Opinionated TypeScript SDK for [QTSurfer](https://qtsurfer.com), built on top of [`@qtsurfer/api-client`](https://github.com/QTSurfer/api-client-ts).
 
 Where `@qtsurfer/api-client` gives you one typed function per API endpoint, `@qtsurfer/sdk` adds **workflow orchestration**, **normalized errors**, and **cancellation** — run a backtest with a single `await`.
+
+## Guides
+
+The hand-written guides mirror the SDK family structure. TypeDoc remains the generated API reference.
+
+- [Authentication](docs/auth.md)
+- [Exchanges, instruments, and downloads](docs/exchange.md)
+- [Strategies and validation](docs/strategy.md)
+- [Backtests and parameter sweeps](docs/backtesting.md)
+- [Dataset uploads](docs/datasets.md)
+- [API coverage](docs/api-coverage.md)
 
 ## Installation
 
@@ -220,7 +231,7 @@ Stream one hour of raw ticker or kline data for an instrument. The default wire 
 
 ```ts
 // Lastra (default)
-const blob = await qts.tickers({
+const blob = await qts.downloadTickers({
   exchangeId: 'binance',
   base: 'BTC',
   quote: 'USDT',
@@ -229,7 +240,7 @@ const blob = await qts.tickers({
 await Bun.write('BTC_USDT_2026-01-15_h10.lastra', await blob.arrayBuffer());
 
 // Parquet
-const klines = await qts.klines({
+const klines = await qts.downloadKlines({
   exchangeId: 'binance',
   base: 'BTC',
   quote: 'USDT',
@@ -243,13 +254,13 @@ HTTP errors surface as `QTSDownloadError` (subclass of `QTSError`).
 ## Exchanges and instruments
 
 ```ts
-const exchanges = await qts.exchanges();
+const exchanges = await qts.listExchanges();
 
 // The exchange's default segment (spot today).
-const spot = await qts.instruments('binance');
+const spot = await qts.listInstruments('binance');
 
 // A specific segment.
-const futures = await qts.instruments('binance', 'futures');
+const futures = await qts.listInstruments('binance', 'futures');
 
 console.log(spot[0]?.coverage?.tickers); // which dates are actually available
 ```
@@ -267,7 +278,7 @@ it. It is idempotent and has **two outcomes**, which the SDK keeps distinct.
 
 The `strategyId` is the one returned when the source was compiled and registered. This SDK does not
 surface compilation on its own — `backtest()` and `sweep()` each do it internally and keep the id —
-so obtain it with `qts.compile(source)` if you need to validate a strategy before running it.
+so obtain it with `qts.compileStrategy(source)` if you need to validate a strategy before running it.
 The response includes `declaredProperties`, a best-effort vocabulary of parameter keys that can
 catch a typo before you submit a sweep.
 
@@ -277,10 +288,10 @@ const outcome = await qts.validateStrategy(strategyId);
 if (outcome.queued) {
   // A check was just started. NOT terminal — poll, under a deadline of your own.
   const deadline = Date.now() + 60_000;
-  let state = await qts.strategy(strategyId);
+  let state = await qts.getStrategy(strategyId);
   while (state.validation === 'pending' && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 1_000));
-    state = await qts.strategy(strategyId);
+    state = await qts.getStrategy(strategyId);
   }
 } else {
   // A verdict already existed and nothing was queued — but read
@@ -310,31 +321,31 @@ would run — ask for validation again.
 ```ts
 // Every strategy you've registered and not deleted, most recently compiled first.
 // Never 404s — an empty array means you have none.
-const summaries = await qts.strategies();
+const summaries = await qts.listStrategies();
 
 // The exact source last submitted for an id, whitespace and comments included.
-const code = await qts.strategyCode(strategyId);
+const code = await qts.getStrategyCode(strategyId);
 
 // Release a registration.
 await qts.deleteStrategy(strategyId);
 ```
 
-`strategies()` deliberately omits `validation` on every entry — that is what keeps it cheap
+`listStrategies()` deliberately omits `validation` on every entry — that is what keeps it cheap
 regardless of how many strategies you have registered. Check a specific one's verdict with
-`strategy(strategyId)`.
+`getStrategy(strategyId)`.
 
-`strategyCode()`'s `404` covers two cases the response cannot tell apart: the id was never
+`getStrategyCode()`'s `404` covers two cases the response cannot tell apart: the id was never
 registered by you, or it resolves only through a shared/marketplace reference that carries no
 source of its own.
 
-`deleteStrategy()` resolves with nothing. It removes the strategy from both `strategy()` and
-`strategies()`, but does not undo anything already run: backtests you ran against it beforehand are
+`deleteStrategy()` resolves with nothing. It removes the strategy from both `getStrategy()` and
+`listStrategies()`, but does not undo anything already run: backtests you ran against it beforehand are
 unaffected, and re-submitting the exact same source afterwards registers a **new** strategy with a
 **new** id rather than undeleting this one. Deleting your own copy of a strategy never affects
 anyone else's copy of the same source (e.g. a shared/marketplace listing).
 
-A full `StrategyState` — from `strategy()`, and from `validateStrategy()`'s already-validated `200`
-— carries an optional `_links.code` discovery link pointing at the same source `strategyCode()`
+A full `StrategyState` — from `getStrategy()`, and from `validateStrategy()`'s already-validated `200`
+— carries an optional `_links.code` discovery link pointing at the same source `getStrategyCode()`
 fetches by id. It is absent from `validateStrategy()`'s `queued: true` (`202`) outcome, which is a
 deliberately partial stub. The SDK does not follow this link for you; it passes through unmodified
 from api-client, so read it off `StrategyState` directly if you want it.
@@ -343,7 +354,7 @@ from api-client, so read it off `StrategyState` directly if you want it.
 
 Create a dataset to obtain a short-lived, presigned upload URL. Upload the raw
 CSV without an API authorization header, then finalize it to queue ingestion.
-`datasetUpload()` reports the ingestion result; only a successfully ingested
+`getDatasetUpload()` reports the ingestion result; only a successfully ingested
 version can be prepared with `exchangeId: 'user'`.
 
 ```ts
@@ -353,18 +364,30 @@ const upload = await qts.createDataset({
 });
 await qts.uploadDatasetFile(upload, csvText);
 const { jobId } = await qts.finalizeDatasetUpload(upload.datasetId, upload.uploadId);
-const state = await qts.datasetUpload(upload.datasetId, upload.uploadId);
+const state = await qts.getDatasetUpload(upload.datasetId, upload.uploadId);
 ```
 
-`datasets()`, `dataset(id)` and `deleteDataset(id)` manage dataset metadata.
+To upload a later version, open a session from the existing dataset and pass it
+to the same `uploadDatasetFile()` helper. Calling `openDatasetUpload()` again
+before finalizing returns the same open session, so retrying after a lost
+response is safe.
+
+```ts
+const next = await qts.openDatasetUpload(upload.datasetId);
+await qts.uploadDatasetFile(next, correctedCsvText);
+await qts.finalizeDatasetUpload(upload.datasetId, next.uploadId);
+```
+
+`listDatasets()`, `getDataset(id)` and `deleteDataset(id)` manage dataset metadata.
 Deletion hides the dataset from future use but does not change backtests that
 already ran against it. A failed PUT leaves nothing to finalize; a `404` from
 `finalizeDatasetUpload()` means the upload session is unknown or has no object
-at its presigned URL.
+at its presigned URL. A `409` means that session already produced a version;
+open a new session instead of reusing its URL.
 
 ## API coverage
 
-Measured against **API spec 0.110.3**: 28 operations, all 28 reachable from this SDK.
+Measured against **API spec 0.111.2**: 29 operations, all 29 reachable from this SDK.
 
 It exists because the generated `@qtsurfer/api-client` tracks the spec automatically and this
 hand-written layer does not, so an operation the platform serves could otherwise have no way in
@@ -376,9 +399,10 @@ deliberately does not wrap it, the row says why.
 There are two ways an operation is reached:
 
 - **Direct** — callable on its own, without running a workflow. The client methods below
-  (`exchanges`, `instruments`, `tickers`, `klines`, `datasets`, `createDataset`, `dataset`,
-  `deleteDataset`, `uploadDatasetFile`, `finalizeDatasetUpload`, `datasetUpload`,
-  `validateStrategy`, `strategy`, `strategies`, `deleteStrategy`, `strategyCode`) exist on
+  (`listExchanges`, `listInstruments`, `downloadTickers`, `downloadKlines`, `listDatasets`,
+  `createDataset`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`,
+  `finalizeDatasetUpload`, `getDatasetUpload`, `compileStrategy`, `validateStrategy`, `getStrategy`,
+  `listStrategies`, `deleteStrategy`, `getStrategyCode`) exist on
   `QTSurfer` and, identically, on the authenticated
   session. The remaining direct rows are reached
   otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
@@ -395,17 +419,17 @@ There are two ways an operation is reached:
 | Operation | How it is reached |
 | --- | --- |
 | `authenticate` | Direct — `authenticate()` |
-| `listExchanges` | Direct — `exchanges()` |
-| `listInstruments` | Direct — `instruments(exchangeId)` |
-| `listSegmentInstruments` | Direct — `instruments(exchangeId, segment)` |
-| `downloadTickers` | Direct — `tickers(...)` |
-| `downloadKlines` | Direct — `klines(...)` |
-| `listStrategies` | Direct — `strategies()` |
-| `compileStrategy` | Direct — `compile(source)`; also used inside `backtest(...)` / `sweep(...)` |
+| `listExchanges` | Direct — `listExchanges()` |
+| `listInstruments` | Direct — `listInstruments(exchangeId)` |
+| `listSegmentInstruments` | Direct — `listInstruments(exchangeId, segment)` |
+| `downloadTickers` | Direct — `downloadTickers(...)` |
+| `downloadKlines` | Direct — `downloadKlines(...)` |
+| `listStrategies` | Direct — `listStrategies()` |
+| `compileStrategy` | Direct — `compileStrategy(source)`; also used inside `backtest(...)` / `sweep(...)` |
 | `validateStrategy` | Direct — `validateStrategy(strategyId)` |
-| `getStrategy` | Direct — `strategy(strategyId)` |
+| `getStrategy` | Direct — `getStrategy(strategyId)` |
 | `deleteStrategy` | Direct — `deleteStrategy(strategyId)` |
-| `getStrategyCode` | Direct — `strategyCode(strategyId)` |
+| `getStrategyCode` | Direct — `getStrategyCode(strategyId)` |
 | `prepareBacktest` | Via workflow |
 | `getPrepareStatus` | Via workflow |
 | `executeBacktest` | Via workflow — `backtest(...)` |
@@ -416,12 +440,13 @@ There are two ways an operation is reached:
 | `cancelSweep` | Direct — the `signal` option on `SweepOptions` |
 | `getSweepSensitivity` | Direct — `Sweep.sensitivity(objective?)` |
 | `getSweepRunEquityCurve` | Direct — `Sweep.equityCurve(runIx, options?)` |
-| `listDatasets` | Direct — `datasets()` |
+| `listDatasets` | Direct — `listDatasets()` |
 | `createDataset` | Direct — `createDataset()` then `uploadDatasetFile()` / `finalizeDatasetUpload()` |
 | `deleteDataset` | Direct — `deleteDataset()` |
-| `getDataset` | Direct — `dataset()` |
+| `getDataset` | Direct — `getDataset()` |
+| `openDatasetUpload` | Direct — `openDatasetUpload()` then `uploadDatasetFile()` |
 | `finalizeDatasetUpload` | Direct — `finalizeDatasetUpload()` |
-| `getDatasetUpload` | Direct — `datasetUpload()` |
+| `getDatasetUpload` | Direct — `getDatasetUpload()` |
 
 ## Error hierarchy
 

@@ -5,9 +5,11 @@ import {
   getDataset as apiGetDataset,
   getDatasetUpload as apiGetDatasetUpload,
   listDatasets as apiListDatasets,
+  openDatasetUpload as apiOpenDatasetUpload,
   type Dataset as ApiDataset,
   type DatasetCreated as ApiDatasetCreated,
   type DatasetUploadState as ApiDatasetUploadState,
+  type DatasetUploadSession as ApiDatasetUploadSession,
   type DatasetWithLinks as ApiDatasetWithLinks,
   type Instrument,
 } from '@qtsurfer/api-client';
@@ -17,6 +19,8 @@ import { requestFailed } from '../internal/requestError';
 export type Dataset = ApiDataset;
 export type DatasetDetail = ApiDatasetWithLinks;
 export type DatasetUpload = ApiDatasetCreated;
+/** A presigned upload session for another version of an existing dataset. */
+export type DatasetUploadSession = ApiDatasetUploadSession;
 export type DatasetUploadState = ApiDatasetUploadState;
 
 export interface CreateDatasetRequest {
@@ -38,6 +42,14 @@ export async function createDataset(request: CreateDatasetRequest): Promise<Data
   return data;
 }
 
+/** Open the dataset's current upload session, or a new one after finalization. */
+export async function openDatasetUpload(datasetId: string): Promise<DatasetUploadSession> {
+  const { data, error, response } = await apiOpenDatasetUpload({ path: { datasetId } });
+  if (error) throw requestFailed('open dataset upload call', error, response?.status);
+  if (!data) throw new QTSError('Empty open dataset upload response');
+  return data;
+}
+
 export async function getDataset(datasetId: string): Promise<DatasetDetail> {
   const { data, error, response } = await apiGetDataset({ path: { datasetId } });
   if (error) throw requestFailed('dataset call', error, response?.status);
@@ -51,11 +63,17 @@ export async function deleteDataset(datasetId: string): Promise<void> {
 }
 
 export async function uploadDatasetFile(
-  upload: DatasetUpload,
+  upload: DatasetUploadSession,
   file: BodyInit,
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
-  const response = await fetchImpl(upload.upload.url, { method: 'PUT', body: file });
+  let response: Response;
+  try {
+    response = await fetchImpl(upload.upload.url, { method: 'PUT', body: file });
+  } catch {
+    // Fetch errors can retain the request URL, which is itself a credential.
+    throw new QTSError('dataset upload transport failed');
+  }
   if (!response.ok) {
     throw new QTSError(`dataset upload failed: HTTP ${response.status}`, undefined, response.status);
   }

@@ -2,7 +2,7 @@
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
   "tsconfig": "tsconfig.test.json",
-  "out": "docs",
+  "out": "docs/js",
   "treatWarningsAsErrors": true,
   "excludePrivate": true,
   "excludeInternal": true,

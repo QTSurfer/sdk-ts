@@ -41,13 +41,13 @@ async function client() {
   return new QTSurfer({ baseUrl: 'https://example.test/v1' });
 }
 
-describe('QTSurfer.compile', () => {
+describe('QTSurfer.compileStrategy', () => {
   it('preserves declared properties from the compile response', async () => {
     const api = await import('@qtsurfer/api-client');
     const compile = api.compileStrategy as ReturnType<typeof vi.fn>;
     compile.mockResolvedValue(ok({ strategyId: SID, declaredProperties: [{ name: 'rsi.period', min: 2 }] }));
     const qts = await client();
-    await expect(qts.compile('class S {}')).resolves.toEqual({
+    await expect(qts.compileStrategy('class S {}')).resolves.toEqual({
       strategyId: SID,
       declaredProperties: [{ name: 'rsi.period', min: 2 }],
     });
@@ -131,7 +131,7 @@ describe('QTSurfer.validateStrategy', () => {
   });
 });
 
-describe('QTSurfer.strategy', () => {
+describe('QTSurfer.getStrategy', () => {
   beforeEach(() => {
     apiGetStrategy.mockReset();
   });
@@ -148,7 +148,7 @@ describe('QTSurfer.strategy', () => {
 
     const qts = await client();
 
-    await expect(qts.strategy(SID)).resolves.toEqual(state);
+    await expect(qts.getStrategy(SID)).resolves.toEqual(state);
     expect(apiGetStrategy).toHaveBeenCalledWith({ path: { strategyId: SID } });
   });
 
@@ -167,7 +167,7 @@ describe('QTSurfer.strategy', () => {
 
     const qts = await client();
 
-    await expect(qts.strategy(SID)).resolves.toEqual(state);
+    await expect(qts.getStrategy(SID)).resolves.toEqual(state);
   });
 
   it('throws QTSError carrying the HTTP status on a 404', async () => {
@@ -176,14 +176,14 @@ describe('QTSurfer.strategy', () => {
     const qts = await client();
     const { QTSError } = await import('../../src/errors');
 
-    await expect(qts.strategy(SID)).rejects.toMatchObject({
+    await expect(qts.getStrategy(SID)).rejects.toMatchObject({
       name: 'QTSError',
       status: 404,
     });
   });
 });
 
-describe('QTSurfer.strategies', () => {
+describe('QTSurfer.listStrategies', () => {
   beforeEach(() => {
     apiListStrategies.mockReset();
   });
@@ -197,7 +197,7 @@ describe('QTSurfer.strategies', () => {
 
     const qts = await client();
 
-    await expect(qts.strategies()).resolves.toEqual(strategies);
+    await expect(qts.listStrategies()).resolves.toEqual(strategies);
     expect(apiListStrategies).toHaveBeenCalledWith();
   });
 
@@ -206,7 +206,7 @@ describe('QTSurfer.strategies', () => {
 
     const qts = await client();
 
-    await expect(qts.strategies()).resolves.toEqual([]);
+    await expect(qts.listStrategies()).resolves.toEqual([]);
   });
 
   it('throws QTSError on a non-2xx response', async () => {
@@ -214,7 +214,7 @@ describe('QTSurfer.strategies', () => {
 
     const qts = await client();
 
-    await expect(qts.strategies()).rejects.toMatchObject({
+    await expect(qts.listStrategies()).rejects.toMatchObject({
       name: 'QTSError',
       status: 500,
     });
@@ -247,7 +247,7 @@ describe('QTSurfer.deleteStrategy', () => {
   });
 });
 
-describe('QTSurfer.strategyCode', () => {
+describe('QTSurfer.getStrategyCode', () => {
   beforeEach(() => {
     apiGetStrategyCode.mockReset();
   });
@@ -258,7 +258,7 @@ describe('QTSurfer.strategyCode', () => {
 
     const qts = await client();
 
-    await expect(qts.strategyCode(SID)).resolves.toBe(code);
+    await expect(qts.getStrategyCode(SID)).resolves.toBe(code);
     expect(apiGetStrategyCode).toHaveBeenCalledWith({ path: { strategyId: SID } });
   });
 
@@ -267,7 +267,7 @@ describe('QTSurfer.strategyCode', () => {
 
     const qts = await client();
 
-    await expect(qts.strategyCode(SID)).rejects.toMatchObject({
+    await expect(qts.getStrategyCode(SID)).rejects.toMatchObject({
       name: 'QTSError',
       status: 404,
     });

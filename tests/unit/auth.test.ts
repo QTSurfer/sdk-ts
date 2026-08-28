@@ -189,7 +189,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // Wrap the download to throw on the api-client error, mimicking what
     // the workflow does internally (downloads.ts throws QTSDownloadError
     // with the original payload as cause).
-    const out = await session.tickers({
+    const out = await session.downloadTickers({
       exchangeId: 'binance',
       base: 'BTC',
       quote: 'USDT',
@@ -218,7 +218,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     const session = await authenticate('ak');
 
     await expect(
-      session.tickers({
+      session.downloadTickers({
         exchangeId: 'binance',
         base: 'BTC',
         quote: 'USDT',
@@ -245,7 +245,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     const session = await authenticate('ak');
 
     await expect(
-      session.tickers({
+      session.downloadTickers({
         exchangeId: 'binance',
         base: 'BTC',
         quote: 'USDT',
@@ -272,7 +272,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // These calls throw a plain QTSError that carries `status`, which is what
     // makes the refresh fire at all — the backtest workflow's stage errors do
     // not carry one and so are never retried.
-    await expect(session.exchanges()).resolves.toEqual(exchanges);
+    await expect(session.listExchanges()).resolves.toEqual(exchanges);
     expect(apiAuth).toHaveBeenCalledTimes(2);
     expect(apiListExchanges).toHaveBeenCalledTimes(2);
     expect(setConfig.mock.calls.at(-1)?.[0]?.headers?.Authorization).toBe('Bearer jwt-2');

@@ -28,11 +28,13 @@ import {
   getDataset,
   getDatasetUpload,
   listDatasets,
+  openDatasetUpload,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
   type DatasetDetail,
   type DatasetUpload,
+  type DatasetUploadSession,
   type DatasetUploadState,
 } from '../workflows/datasets';
 import {
@@ -176,7 +178,7 @@ export class AuthenticatedClient {
   /**
    * Run a backtest end-to-end (compile → prepare → execute), sending the
    * currently cached token (minting one first if none is cached). Unlike
-   * `tickers()`/`klines()`, a `401` here is not auto-retried: the underlying
+   * `downloadTickers()`/`downloadKlines()`, a `401` here is not auto-retried: the underlying
    * stage errors carry no HTTP status, so a token that expires mid-backtest
    * surfaces as `QTSPreparationError`/`QTSExecutionError` rather than
    * triggering a refresh.
@@ -208,12 +210,12 @@ export class AuthenticatedClient {
   }
 
   /** Download one hour of raw tickers. Refreshes the token once on `401` before retrying. */
-  tickers(args: DownloadHourArgs): Promise<Blob> {
+  downloadTickers(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadTickers(args));
   }
 
   /** Download one hour of klines. Refreshes the token once on `401` before retrying. */
-  klines(args: DownloadHourArgs): Promise<Blob> {
+  downloadKlines(args: DownloadHourArgs): Promise<Blob> {
     return this.withRefreshOn401(() => downloadKlines(args));
   }
 
@@ -221,17 +223,17 @@ export class AuthenticatedClient {
    * List the exchanges the platform serves. Refreshes the token once on `401`
    * before retrying.
    */
-  exchanges(): Promise<Exchange[]> {
+  listExchanges(): Promise<Exchange[]> {
     return this.withRefreshOn401(() => listExchanges());
   }
 
   /**
    * List an exchange's instruments, optionally for a specific segment.
    * Refreshes the token once on `401` before retrying. See
-   * {@link QTSurfer.instruments} for what the unwrapped HAL envelope leaves
+   * {@link QTSurfer.listInstruments} for what the unwrapped HAL envelope leaves
    * out.
    */
-  instruments(
+  listInstruments(
     exchangeId: string,
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
@@ -239,12 +241,12 @@ export class AuthenticatedClient {
   }
 
   /** Compile and register source, returning its id and declared parameter hints. */
-  compile(source: string): Promise<CompiledStrategy> {
+  compileStrategy(source: string): Promise<CompiledStrategy> {
     return this.withRefreshOn401(() => compileStrategy(source));
   }
 
   /** List datasets owned by the authenticated caller. Refreshes once on 401. */
-  datasets(): Promise<Dataset[]> {
+  listDatasets(): Promise<Dataset[]> {
     return this.withRefreshOn401(() => listDatasets());
   }
 
@@ -254,7 +256,7 @@ export class AuthenticatedClient {
   }
 
   /** Read a dataset and its current-version metadata. Refreshes once on 401. */
-  dataset(datasetId: string): Promise<DatasetDetail> {
+  getDataset(datasetId: string): Promise<DatasetDetail> {
     return this.withRefreshOn401(() => getDataset(datasetId));
   }
 
@@ -264,8 +266,13 @@ export class AuthenticatedClient {
   }
 
   /** PUT raw CSV bytes to the upload session's presigned URL. */
-  uploadDatasetFile(upload: DatasetUpload, file: BodyInit): Promise<void> {
+  uploadDatasetFile(upload: DatasetUploadSession, file: BodyInit): Promise<void> {
     return uploadDatasetFile(upload, file, this.fetchImpl);
+  }
+
+  /** Open or recover an upload session for another version of a dataset. */
+  openDatasetUpload(datasetId: string): Promise<DatasetUploadSession> {
+    return this.withRefreshOn401(() => openDatasetUpload(datasetId));
   }
 
   /** Queue ingest after upload succeeds. Refreshes once on 401. */
@@ -274,7 +281,7 @@ export class AuthenticatedClient {
   }
 
   /** Read ingestion state for one upload session. Refreshes once on 401. */
-  datasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
+  getDatasetUpload(datasetId: string, uploadId: string): Promise<DatasetUploadState> {
     return this.withRefreshOn401(() => getDatasetUpload(datasetId, uploadId));
   }
 
@@ -282,7 +289,7 @@ export class AuthenticatedClient {
    * Ask the platform to check that a registered strategy can actually run.
    * Refreshes the token once on `401` before retrying. Two-outcome — see
    * {@link QTSurfer.validateStrategy}; `queued: true` is not terminal and
-   * must be followed by polling {@link AuthenticatedClient.strategy} under a
+   * must be followed by polling {@link AuthenticatedClient.getStrategy} under a
    * deadline of your own.
    */
   validateStrategy(strategyId: string): Promise<StrategyValidation> {
@@ -295,16 +302,16 @@ export class AuthenticatedClient {
    * {@link StrategyState} for why a `'passed'` verdict is a floor rather than
    * a guarantee.
    */
-  strategy(strategyId: string): Promise<StrategyState> {
+  getStrategy(strategyId: string): Promise<StrategyState> {
     return this.withRefreshOn401(() => getStrategy(strategyId));
   }
 
   /**
    * List every strategy you have registered and not deleted, most recently
    * compiled first. Refreshes the token once on `401` before retrying. See
-   * {@link QTSurfer.strategies}.
+   * {@link QTSurfer.listStrategies}.
    */
-  strategies(): Promise<StrategySummary[]> {
+  listStrategies(): Promise<StrategySummary[]> {
     return this.withRefreshOn401(() => listStrategies());
   }
 
@@ -319,10 +326,10 @@ export class AuthenticatedClient {
 
   /**
    * Read back a strategy's exact registered source. Refreshes the token
-   * once on `401` before retrying. See {@link QTSurfer.strategyCode} for
+   * once on `401` before retrying. See {@link QTSurfer.getStrategyCode} for
    * what its `404` covers.
    */
-  strategyCode(strategyId: string): Promise<string> {
+  getStrategyCode(strategyId: string): Promise<string> {
     return this.withRefreshOn401(() => getStrategyCode(strategyId));
   }
 }
@@ -333,9 +340,9 @@ export class AuthenticatedClient {
  * If `apikey` is omitted, the SDK reads `QTSURFER_APIKEY` from the
  * environment. The returned {@link AuthenticatedClient} caches the JWT,
  * refreshes it on 401, and exposes the same surface as `QTSurfer`
- * (`backtest`, `sweep`, `tickers`, `klines`, `exchanges`, `instruments`,
- * `validateStrategy`, `strategy`, `strategies`, `deleteStrategy`,
- * `strategyCode`).
+ * (`backtest`, `sweep`, `downloadTickers`, `downloadKlines`, `listExchanges`,
+ * `listInstruments`, `compileStrategy`, `validateStrategy`, `getStrategy`,
+ * `listStrategies`, `deleteStrategy`, `getStrategyCode`).
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.
  */

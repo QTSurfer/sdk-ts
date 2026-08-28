@@ -29,7 +29,7 @@ export type InstrumentDetail = ApiInstrumentDetail;
 
 /**
  * A market segment of an exchange. `'spot'` is the default segment served
- * when {@link QTSurfer.instruments} is called without one.
+ * when {@link QTSurfer.listInstruments} is called without one.
  */
 export type InstrumentSegment = 'spot' | 'futures';
 
