@@ -65,11 +65,12 @@ export async function deleteDataset(datasetId: string): Promise<void> {
 export async function uploadDatasetFile(
   upload: DatasetUploadSession,
   file: BodyInit,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl?: typeof fetch,
 ): Promise<void> {
+  const request = fetchImpl ?? globalThis.fetch;
   let response: Response;
   try {
-    response = await fetchImpl(upload.upload.url, { method: 'PUT', body: file });
+    response = await request(upload.upload.url, { method: 'PUT', body: file });
   } catch {
     // Fetch errors can retain the request URL, which is itself a credential.
     throw new QTSError('dataset upload transport failed');

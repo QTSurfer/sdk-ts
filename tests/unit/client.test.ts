@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setConfig = vi.fn();
 
@@ -16,6 +16,10 @@ vi.mock('@qtsurfer/api-client', () => ({
 describe('QTSurfer client', () => {
   beforeEach(() => {
     setConfig.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('propagates baseUrl to api-client singleton', async () => {
@@ -54,5 +58,19 @@ describe('QTSurfer client', () => {
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({ fetch: customFetch }),
     );
+  });
+
+  it('uses platform fetch for dataset uploads when none is configured', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchImpl);
+    const { QTSurfer } = await import('../../src/client');
+    const qts = new QTSurfer({ baseUrl: 'https://example.test/v1' });
+
+    await qts.uploadDatasetFile(
+      { uploadId: 'up_1', upload: { url: 'https://upload.test', expiresInMinutes: 10 } },
+      'csv',
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://upload.test', { method: 'PUT', body: 'csv' });
   });
 });

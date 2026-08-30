@@ -490,6 +490,8 @@ export interface Sweep {
    */
   readonly accepted: SweepAccepted;
   /** Fetch a retained trial curve. A 404 means the run did not retain one. */
+  getEquityCurve(runIx: number, options?: EquityCurveOptions): Promise<EquityCurveResult>;
+  /** @deprecated Use {@link Sweep.getEquityCurve}. */
   equityCurve(runIx: number, options?: EquityCurveOptions): Promise<EquityCurveResult>;
   /**
    * Local snapshot of the sweep lifecycle; reading it does not contact the
@@ -600,6 +602,8 @@ export interface Sweep {
    * default (`order: 'ranked'`, `ranking: 'plateau'`)
    * @throws QTSError on any non-2xx response, with the HTTP status on `status`.
    */
+  getResults(view?: { order?: SweepOrder; ranking?: SweepRanking }): Promise<SweepResult>;
+  /** @deprecated Use {@link Sweep.getResults}. */
   results(view?: { order?: SweepOrder; ranking?: SweepRanking }): Promise<SweepResult>;
   /**
    * How the objective moves as each parameter moves — the question a
@@ -636,6 +640,8 @@ export interface Sweep {
    * sweep was submitted with
    * @throws QTSError on any non-2xx response, with the HTTP status on `status`.
    */
+  getSensitivity(objective?: SweepObjective): Promise<SweepSensitivity>;
+  /** @deprecated Use {@link Sweep.getSensitivity}. */
   sensitivity(objective?: SweepObjective): Promise<SweepSensitivity>;
 }
 
@@ -835,46 +841,46 @@ function createHandle(
     }
   }
 
+  const getEquityCurve = async (runIx: number, options: EquityCurveOptions = {}) => {
+    const res = await getSweepRunEquityCurve({
+      path: { ...path, runIx },
+      ...(Object.keys(options).length > 0 ? { query: options } : {}),
+    });
+    if (res.error) throw requestFailed('sweep equity curve call', res.error, res.response?.status);
+    if (!res.data) throw new QTSError('Empty sweep equity curve response');
+    return res.data;
+  };
+  const getResults = async (view: { order?: SweepOrder; ranking?: SweepRanking } = {}): Promise<SweepResult> => {
+    const res = await getSweepResult({ path, ...viewQuery(view) });
+    if (res.error) throw requestFailed('sweep results call', res.error, res.response?.status);
+    if (!res.data) throw new QTSError('Empty sweep result response');
+    return res.data;
+  };
+  const getSensitivity = async (objective?: SweepObjective): Promise<SweepSensitivity> => {
+    const res = await getSweepSensitivity({
+      path,
+      ...(objective !== undefined ? { query: { objective } } : {}),
+    });
+    if (res.error) throw requestFailed('sweep sensitivity call', res.error, res.response?.status);
+    if (!res.data) throw new QTSError('Empty sweep sensitivity response');
+    return res.data;
+  };
+
   return {
     sweepId,
     requestId,
     strategyId,
     accepted,
-    equityCurve: async (runIx, options = {}) => {
-      const res = await getSweepRunEquityCurve({
-        path: { ...path, runIx },
-        ...(Object.keys(options).length > 0 ? { query: options } : {}),
-      });
-      if (res.error) throw requestFailed('sweep equity curve call', res.error, res.response?.status);
-      if (!res.data) throw new QTSError('Empty sweep equity curve response');
-      return res.data;
-    },
+    getEquityCurve,
+    equityCurve: getEquityCurve,
     get state() {
       return state;
     },
     result,
-    results: async (view = {}): Promise<SweepResult> => {
-      // A read of the sweep that already exists: same path, different query. Nothing here
-      // compiles, prepares or submits, so asking for the natural view costs one request rather
-      // than a second pipeline.
-      const res = await getSweepResult({ path, ...viewQuery(view) });
-      if (res.error) {
-        throw requestFailed('sweep results call', res.error, res.response?.status);
-      }
-      if (!res.data) throw new QTSError('Empty sweep result response');
-      return res.data;
-    },
-    sensitivity: async (objective?: SweepObjective): Promise<SweepSensitivity> => {
-      const res = await getSweepSensitivity({
-        path,
-        ...(objective !== undefined ? { query: { objective } } : {}),
-      });
-      if (res.error) {
-        throw requestFailed('sweep sensitivity call', res.error, res.response?.status);
-      }
-      if (!res.data) throw new QTSError('Empty sweep sensitivity response');
-      return res.data;
-    },
+    getResults,
+    results: getResults,
+    getSensitivity,
+    sensitivity: getSensitivity,
   };
 }
 

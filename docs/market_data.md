@@ -1,12 +1,12 @@
 # Exchanges, instruments, and downloads
 
-Discover the available catalog before selecting a data window. `listInstruments` unwraps the API's
+Discover the available catalog before selecting a data window. `getInstruments` unwraps the API's
 HAL envelope and returns the instrument array; coverage is live platform state and is not cached.
 
 ```ts
-const exchanges = await qts.listExchanges();
-const spot = await qts.listInstruments('binance');
-const futures = await qts.listInstruments('binance', 'futures');
+const exchanges = await qts.getExchanges();
+const spot = await qts.getInstruments('binance');
+const futures = await qts.getInstruments('binance', 'futures');
 console.log(spot[0]?.coverage?.tickers);
 ```
 

@@ -197,7 +197,7 @@ describe('QTSurfer.listStrategies', () => {
 
     const qts = await client();
 
-    await expect(qts.listStrategies()).resolves.toEqual(strategies);
+    await expect(qts.getStrategies()).resolves.toEqual(strategies);
     expect(apiListStrategies).toHaveBeenCalledWith();
   });
 
@@ -206,7 +206,7 @@ describe('QTSurfer.listStrategies', () => {
 
     const qts = await client();
 
-    await expect(qts.listStrategies()).resolves.toEqual([]);
+    await expect(qts.getStrategies()).resolves.toEqual([]);
   });
 
   it('throws QTSError on a non-2xx response', async () => {
@@ -214,7 +214,7 @@ describe('QTSurfer.listStrategies', () => {
 
     const qts = await client();
 
-    await expect(qts.listStrategies()).rejects.toMatchObject({
+    await expect(qts.getStrategies()).rejects.toMatchObject({
       name: 'QTSError',
       status: 500,
     });

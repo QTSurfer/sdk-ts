@@ -183,8 +183,13 @@ export class AuthenticatedClient {
    * surfaces as `QTSPreparationError`/`QTSExecutionError` rather than
    * triggering a refresh.
    */
-  backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
+  executeBacktest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
     return this.withRefreshOn401(() => runBacktest(req, opts));
+  }
+
+  /** @deprecated Use {@link AuthenticatedClient.executeBacktest}. */
+  backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
+    return this.executeBacktest(req, opts);
   }
 
   /**
@@ -223,21 +228,31 @@ export class AuthenticatedClient {
    * List the exchanges the platform serves. Refreshes the token once on `401`
    * before retrying.
    */
-  listExchanges(): Promise<Exchange[]> {
+  getExchanges(): Promise<Exchange[]> {
     return this.withRefreshOn401(() => listExchanges());
+  }
+
+  /** @deprecated Use {@link AuthenticatedClient.getExchanges}. */
+  listExchanges(): Promise<Exchange[]> {
+    return this.getExchanges();
   }
 
   /**
    * List an exchange's instruments, optionally for a specific segment.
    * Refreshes the token once on `401` before retrying. See
-   * {@link QTSurfer.listInstruments} for what the unwrapped HAL envelope leaves
+   * {@link QTSurfer.getInstruments} for what the unwrapped HAL envelope leaves
    * out.
    */
-  listInstruments(
+  getInstruments(
     exchangeId: string,
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return this.withRefreshOn401(() => listInstruments(exchangeId, segment));
+  }
+
+  /** @deprecated Use {@link AuthenticatedClient.getInstruments}. */
+  listInstruments(exchangeId: string, segment?: InstrumentSegment): Promise<InstrumentDetail[]> {
+    return this.getInstruments(exchangeId, segment);
   }
 
   /** Compile and register source, returning its id and declared parameter hints. */
@@ -246,8 +261,13 @@ export class AuthenticatedClient {
   }
 
   /** List datasets owned by the authenticated caller. Refreshes once on 401. */
-  listDatasets(): Promise<Dataset[]> {
+  getDatasets(): Promise<Dataset[]> {
     return this.withRefreshOn401(() => listDatasets());
+  }
+
+  /** @deprecated Use {@link AuthenticatedClient.getDatasets}. */
+  listDatasets(): Promise<Dataset[]> {
+    return this.getDatasets();
   }
 
   /** Create a dataset and return its one-time presigned upload session. */
@@ -267,7 +287,7 @@ export class AuthenticatedClient {
 
   /** PUT raw CSV bytes to the upload session's presigned URL. */
   uploadDatasetFile(upload: DatasetUploadSession, file: BodyInit): Promise<void> {
-    return uploadDatasetFile(upload, file, this.fetchImpl);
+    return uploadDatasetFile(upload, file, this.fetchImpl ?? globalThis.fetch);
   }
 
   /** Open or recover an upload session for another version of a dataset. */
@@ -309,10 +329,15 @@ export class AuthenticatedClient {
   /**
    * List every strategy you have registered and not deleted, most recently
    * compiled first. Refreshes the token once on `401` before retrying. See
-   * {@link QTSurfer.listStrategies}.
+   * {@link QTSurfer.getStrategies}.
    */
-  listStrategies(): Promise<StrategySummary[]> {
+  getStrategies(): Promise<StrategySummary[]> {
     return this.withRefreshOn401(() => listStrategies());
+  }
+
+  /** @deprecated Use {@link AuthenticatedClient.getStrategies}. */
+  listStrategies(): Promise<StrategySummary[]> {
+    return this.getStrategies();
   }
 
   /**
@@ -340,9 +365,9 @@ export class AuthenticatedClient {
  * If `apikey` is omitted, the SDK reads `QTSURFER_APIKEY` from the
  * environment. The returned {@link AuthenticatedClient} caches the JWT,
  * refreshes it on 401, and exposes the same surface as `QTSurfer`
- * (`backtest`, `sweep`, `downloadTickers`, `downloadKlines`, `listExchanges`,
- * `listInstruments`, `compileStrategy`, `validateStrategy`, `getStrategy`,
- * `listStrategies`, `deleteStrategy`, `getStrategyCode`).
+ * (`executeBacktest`, `sweep`, `downloadTickers`, `downloadKlines`, `getExchanges`,
+ * `getInstruments`, `compileStrategy`, `validateStrategy`, `getStrategy`,
+ * `getStrategies`, `deleteStrategy`, `getStrategyCode`).
  *
  * @throws {QTSAuthError} if no apikey is supplied or available in env.
  */

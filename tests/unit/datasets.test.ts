@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiListDatasets = vi.fn();
 const apiCreateDataset = vi.fn();
@@ -24,6 +24,10 @@ describe('dataset workflow', () => {
   beforeEach(() => {
     [apiListDatasets, apiCreateDataset, apiGetDataset, apiDeleteDataset, apiFinalizeDatasetUpload, apiGetDatasetUpload, apiOpenDatasetUpload]
       .forEach((mock) => mock.mockReset());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('uses the API dataset endpoints and preserves the upload session', async () => {
@@ -59,6 +63,19 @@ describe('dataset workflow', () => {
       'csv',
       fetchImpl,
     );
+    expect(fetchImpl).toHaveBeenCalledWith('https://upload.test', { method: 'PUT', body: 'csv' });
+  });
+
+  it('uses the platform fetch when no custom transport is supplied', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchImpl);
+    const { uploadDatasetFile } = await import('../../src/workflows/datasets');
+
+    await uploadDatasetFile(
+      { uploadId: 'up_1', upload: { url: 'https://upload.test', expiresInMinutes: 10 } },
+      'csv',
+    );
+
     expect(fetchImpl).toHaveBeenCalledWith('https://upload.test', { method: 'PUT', body: 'csv' });
   });
 

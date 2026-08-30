@@ -16,7 +16,7 @@ Where `@qtsurfer/api-client` gives you one typed function per API endpoint, `@qt
 The hand-written guides mirror the SDK family structure. TypeDoc remains the generated API reference.
 
 - [Authentication](docs/auth.md)
-- [Exchanges, instruments, and downloads](docs/exchange.md)
+- [Market data: exchanges, instruments, and downloads](docs/market_data.md)
 - [Strategies and validation](docs/strategy.md)
 - [Backtests and parameter sweeps](docs/backtesting.md)
 - [Dataset uploads](docs/datasets.md)
@@ -43,7 +43,7 @@ import { readFileSync } from 'node:fs';
 const qts = await authenticate();
 // Or: const qts = await authenticate('ak_...');
 
-const result = await qts.backtest({
+const result = await qts.executeBacktest({
   strategy: readFileSync('./MyStrategy.java', 'utf8'),
   exchangeId: 'binance',
   instrument: 'BTC/USDT',
@@ -96,7 +96,7 @@ const qts = new QTSurfer({
 });
 ```
 
-## What `backtest()` does
+## What `executeBacktest()` does
 
 Orchestrates the full four-step workflow that the raw API exposes:
 
@@ -147,10 +147,10 @@ handle.accepted.queued; // false ⇒ an identical sweep already existed; nothing
 handle.accepted.walkForward; // present ⇒ this sweep answers in the walk-forward shape
 
 const result = await handle.result;
-const sensitivity = await handle.sensitivity();
+const sensitivity = await handle.getSensitivity();
 
 // Same sweep, another view — a read, not a re-run.
-const everyRow = await handle.results({ order: 'natural' });
+const everyRow = await handle.getResults({ order: 'natural' });
 ```
 
 `params` axes take one of two shapes: `{ from, to, step }` for a numeric range, or
@@ -169,7 +169,7 @@ Five things the types cannot tell you:
   the point simply had no neighbours in the grid to compare against.
 - **`truncated === true` means rows were dropped** from the ranked view. `order: 'natural'` is the
   route to them — every available row, untruncated, in `runIx` order. Reach them with
-  `handle.results({ order: 'natural' })`, described below.
+  `handle.getResults({ order: 'natural' })`, described below.
 - **`deflatedSharpe`** is the probability that a row's Sharpe reflects real edge rather than the
   best draw from however many vectors were tried; ~0.95 and up survives the multiple-testing
   correction, ~0.5 and below does not. **`pbo`** says the same thing about the search as a whole:
@@ -185,16 +185,16 @@ Five things the types cannot tell you:
 different way is a **read**, not a re-run:
 
 ```ts
-const everyRow = await handle.results({ order: 'natural' });
+const everyRow = await handle.getResults({ order: 'natural' });
 ```
 
-`handle.results(view?)` compiles nothing, prepares nothing and submits nothing — no second sweep is
+`handle.getResults(view?)` compiles nothing, prepares nothing and submits nothing — no second sweep is
 created. An absent property takes the platform default, and `ranking` is ignored alongside
 `order: 'natural'` (that view is always `runIx`-ordered, and the response reports `'raw'`). It works
-on a sweep still in flight, returning the rows finished so far, exactly like `sensitivity()`.
+on a sweep still in flight, returning the rows finished so far, exactly like `getSensitivity()`.
 
 The `order` / `ranking` passed in `SweepOptions` only decide what the background poll behind
-`handle.result` reads; `results()` is how to change the view afterwards.
+`handle.result` reads; `getResults()` is how to change the view afterwards.
 
 ### Walk-forward validation
 
@@ -211,14 +211,14 @@ figure could not be computed, and zero is itself a meaningful reading there.
 
 ### Sensitivity
 
-`handle.sensitivity(objective?)` answers what a leaderboard cannot: whether an axis moved the
+`handle.getSensitivity(objective?)` answers what a leaderboard cannot: whether an axis moved the
 objective at all. Marginals collapse every axis but one; heatmaps do the same over a pair.
 **Check `heatmapsTruncated`** — marginals are always complete, but the pair surfaces are quadratic
 in the axis count and may be capped, so a short list is not necessarily the whole interaction set.
 
 ### Cancelling a sweep
 
-Pass an `AbortSignal`, as with `backtest()`. Unlike `backtest()`, **awaiting a cancelled sweep
+Pass an `AbortSignal`, as with `executeBacktest()`. Unlike `executeBacktest()`, **awaiting a cancelled sweep
 resolves rather than rejecting**: cancellation is requested between parameter vectors and the rows
 already completed stay readable, so the SDK keeps polling until the platform reports the sweep
 `CANCELLED` and then hands back the partial leaderboard. Read `result.status` to tell
@@ -254,13 +254,13 @@ HTTP errors surface as `QTSDownloadError` (subclass of `QTSError`).
 ## Exchanges and instruments
 
 ```ts
-const exchanges = await qts.listExchanges();
+const exchanges = await qts.getExchanges();
 
 // The exchange's default segment (spot today).
-const spot = await qts.listInstruments('binance');
+const spot = await qts.getInstruments('binance');
 
 // A specific segment.
-const futures = await qts.listInstruments('binance', 'futures');
+const futures = await qts.getInstruments('binance', 'futures');
 
 console.log(spot[0]?.coverage?.tickers); // which dates are actually available
 ```
@@ -277,7 +277,7 @@ bounded synthetic series, so a wiring fault surfaces before your first backtest 
 it. It is idempotent and has **two outcomes**, which the SDK keeps distinct.
 
 The `strategyId` is the one returned when the source was compiled and registered. This SDK does not
-surface compilation on its own — `backtest()` and `sweep()` each do it internally and keep the id —
+surface compilation on its own — `executeBacktest()` and `sweep()` each do it internally and keep the id —
 so obtain it with `qts.compileStrategy(source)` if you need to validate a strategy before running it.
 The response includes `declaredProperties`, a best-effort vocabulary of parameter keys that can
 catch a typo before you submit a sweep.
@@ -321,7 +321,7 @@ would run — ask for validation again.
 ```ts
 // Every strategy you've registered and not deleted, most recently compiled first.
 // Never 404s — an empty array means you have none.
-const summaries = await qts.listStrategies();
+const summaries = await qts.getStrategies();
 
 // The exact source last submitted for an id, whitespace and comments included.
 const code = await qts.getStrategyCode(strategyId);
@@ -330,7 +330,7 @@ const code = await qts.getStrategyCode(strategyId);
 await qts.deleteStrategy(strategyId);
 ```
 
-`listStrategies()` deliberately omits `validation` on every entry — that is what keeps it cheap
+`getStrategies()` deliberately omits `validation` on every entry — that is what keeps it cheap
 regardless of how many strategies you have registered. Check a specific one's verdict with
 `getStrategy(strategyId)`.
 
@@ -339,7 +339,7 @@ registered by you, or it resolves only through a shared/marketplace reference th
 source of its own.
 
 `deleteStrategy()` resolves with nothing. It removes the strategy from both `getStrategy()` and
-`listStrategies()`, but does not undo anything already run: backtests you ran against it beforehand are
+`getStrategies()`, but does not undo anything already run: backtests you ran against it beforehand are
 unaffected, and re-submitting the exact same source afterwards registers a **new** strategy with a
 **new** id rather than undeleting this one. Deleting your own copy of a strategy never affects
 anyone else's copy of the same source (e.g. a shared/marketplace listing).
@@ -378,7 +378,7 @@ await qts.uploadDatasetFile(next, correctedCsvText);
 await qts.finalizeDatasetUpload(upload.datasetId, next.uploadId);
 ```
 
-`listDatasets()`, `getDataset(id)` and `deleteDataset(id)` manage dataset metadata.
+`getDatasets()`, `getDataset(id)` and `deleteDataset(id)` manage dataset metadata.
 Deletion hides the dataset from future use but does not change backtests that
 already ran against it. A failed PUT leaves nothing to finalize; a `404` from
 `finalizeDatasetUpload()` means the upload session is unknown or has no object
@@ -399,17 +399,17 @@ deliberately does not wrap it, the row says why.
 There are two ways an operation is reached:
 
 - **Direct** — callable on its own, without running a workflow. The client methods below
-  (`listExchanges`, `listInstruments`, `downloadTickers`, `downloadKlines`, `listDatasets`,
+  (`getExchanges`, `getInstruments`, `downloadTickers`, `downloadKlines`, `getDatasets`,
   `createDataset`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`,
   `finalizeDatasetUpload`, `getDatasetUpload`, `compileStrategy`, `validateStrategy`, `getStrategy`,
-  `listStrategies`, `deleteStrategy`, `getStrategyCode`) exist on
+  `getStrategies`, `deleteStrategy`, `getStrategyCode`) exist on
   `QTSurfer` and, identically, on the authenticated
   session. The remaining direct rows are reached
   otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
   `Sweep.*` entries live on the handle `sweep()` hands back and, being handle-scoped, sit outside
   the session's refresh-on-401 policy; and the two cancels are an option you pass in rather than a
   call you make.
-- **Via workflow** — reachable only as a stage inside `backtest(...)` or `sweep(...)`, with no
+- **Via workflow** — reachable only as a stage inside `executeBacktest(...)` or `sweep(...)`, with no
   standalone method. Deliberate rather than missing: the workflow owns the dataset lifecycle.
   Prepare, execute and result are addressed by ids the workflow mints and threads through the
   stages, so exposing a stage on its own would hand the caller a `requestId` to keep alive and pass
@@ -419,28 +419,28 @@ There are two ways an operation is reached:
 | Operation | How it is reached |
 | --- | --- |
 | `authenticate` | Direct — `authenticate()` |
-| `listExchanges` | Direct — `listExchanges()` |
-| `listInstruments` | Direct — `listInstruments(exchangeId)` |
-| `listSegmentInstruments` | Direct — `listInstruments(exchangeId, segment)` |
+| `listExchanges` | Direct — `getExchanges()` |
+| `listInstruments` | Direct — `getInstruments(exchangeId)` |
+| `listSegmentInstruments` | Direct — `getInstruments(exchangeId, segment)` |
 | `downloadTickers` | Direct — `downloadTickers(...)` |
 | `downloadKlines` | Direct — `downloadKlines(...)` |
-| `listStrategies` | Direct — `listStrategies()` |
-| `compileStrategy` | Direct — `compileStrategy(source)`; also used inside `backtest(...)` / `sweep(...)` |
+| `listStrategies` | Direct — `getStrategies()` |
+| `compileStrategy` | Direct — `compileStrategy(source)`; also used inside `executeBacktest(...)` / `sweep(...)` |
 | `validateStrategy` | Direct — `validateStrategy(strategyId)` |
 | `getStrategy` | Direct — `getStrategy(strategyId)` |
 | `deleteStrategy` | Direct — `deleteStrategy(strategyId)` |
 | `getStrategyCode` | Direct — `getStrategyCode(strategyId)` |
 | `prepareBacktest` | Via workflow |
 | `getPrepareStatus` | Via workflow |
-| `executeBacktest` | Via workflow — `backtest(...)` |
+| `executeBacktest` | Via workflow — `executeBacktest(...)` |
 | `getBacktestResult` | Via workflow |
 | `cancelBacktest` | Direct — the `signal` (`AbortSignal`) option on `BacktestOptions` |
 | `executeSweep` | Via workflow — `sweep(...)` |
-| `getSweepResult` | Via workflow (the background poll behind `Sweep.result`) and direct — `Sweep.results(view?)` re-reads the same sweep under another view |
+| `getSweepResult` | Via workflow (the background poll behind `Sweep.result`) and direct — `Sweep.getResults(view?)` re-reads the same sweep under another view |
 | `cancelSweep` | Direct — the `signal` option on `SweepOptions` |
-| `getSweepSensitivity` | Direct — `Sweep.sensitivity(objective?)` |
-| `getSweepRunEquityCurve` | Direct — `Sweep.equityCurve(runIx, options?)` |
-| `listDatasets` | Direct — `listDatasets()` |
+| `getSweepSensitivity` | Direct — `Sweep.getSensitivity(objective?)` |
+| `getSweepRunEquityCurve` | Direct — `Sweep.getEquityCurve(runIx, options?)` |
+| `listDatasets` | Direct — `getDatasets()` |
 | `createDataset` | Direct — `createDataset()` then `uploadDatasetFile()` / `finalizeDatasetUpload()` |
 | `deleteDataset` | Direct — `deleteDataset()` |
 | `getDataset` | Direct — `getDataset()` |
@@ -464,7 +464,7 @@ import {
 } from '@qtsurfer/sdk';
 
 try {
-  await qts.backtest(req);
+  await qts.executeBacktest(req);
 } catch (e) {
   if (e instanceof QTSStrategyCompileError) {
     console.error('Compile failed:', e.message);
@@ -489,7 +489,7 @@ Pass an `AbortSignal`. The SDK stops polling immediately and, if execution has a
 ```ts
 const controller = new AbortController();
 setTimeout(() => controller.abort(), 60_000);
-await qts.backtest(req, { signal: controller.signal });
+await qts.executeBacktest(req, { signal: controller.signal });
 ```
 
 `sweep()` takes the same option but answers differently once the sweep has been accepted — see

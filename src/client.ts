@@ -83,8 +83,8 @@ export interface DownloadHourArgs {
 /**
  * Thin, stateless wrapper over `@qtsurfer/api-client` that exposes the SDK's
  * workflow methods (`backtest`, `sweep`, `downloadTickers`, `downloadKlines`), the platform catalog
- * (`listExchanges`, `listInstruments`) and the strategy surface (`compileStrategy`,
- * `validateStrategy`, `getStrategy`, `listStrategies`, `deleteStrategy`, `getStrategyCode`). Constructing an
+ * (`getExchanges`, `getInstruments`) and the strategy surface (`compileStrategy`,
+ * `validateStrategy`, `getStrategy`, `getStrategies`, `deleteStrategy`, `getStrategyCode`). Constructing an
  * instance reconfigures the underlying api-client singleton, so avoid
  * holding two `QTSurfer`s with different `baseUrl`s or tokens alive in the
  * same process — they will race. Prefer the `authenticate()` helper over
@@ -110,8 +110,13 @@ export class QTSurfer {
    * completes. See the underlying `backtest` workflow for the
    * stage-by-stage error and retry semantics.
    */
-  backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
+  executeBacktest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
     return backtest(req, opts);
+  }
+
+  /** @deprecated Use {@link QTSurfer.executeBacktest}. */
+  backtest(req: BacktestRequest, opts?: BacktestOptions): Promise<BacktestResult> {
+    return this.executeBacktest(req, opts);
   }
 
   /**
@@ -177,8 +182,13 @@ export class QTSurfer {
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  listExchanges(): Promise<Exchange[]> {
+  getExchanges(): Promise<Exchange[]> {
     return listExchanges();
+  }
+
+  /** @deprecated Use {@link QTSurfer.getExchanges}. */
+  listExchanges(): Promise<Exchange[]> {
+    return this.getExchanges();
   }
 
   /**
@@ -196,11 +206,16 @@ export class QTSurfer {
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  listInstruments(
+  getInstruments(
     exchangeId: string,
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return listInstruments(exchangeId, segment);
+  }
+
+  /** @deprecated Use {@link QTSurfer.getInstruments}. */
+  listInstruments(exchangeId: string, segment?: InstrumentSegment): Promise<InstrumentDetail[]> {
+    return this.getInstruments(exchangeId, segment);
   }
 
   /** Compile and register source, returning its id and declared parameter hints. */
@@ -209,8 +224,13 @@ export class QTSurfer {
   }
 
   /** List datasets owned by the authenticated caller. */
-  listDatasets(): Promise<Dataset[]> {
+  getDatasets(): Promise<Dataset[]> {
     return listDatasets();
+  }
+
+  /** @deprecated Use {@link QTSurfer.getDatasets}. */
+  listDatasets(): Promise<Dataset[]> {
+    return this.getDatasets();
   }
 
   /** Create a dataset and return the one-time presigned upload session. */
@@ -230,7 +250,7 @@ export class QTSurfer {
 
   /** PUT raw CSV bytes to a dataset upload session's presigned URL. */
   uploadDatasetFile(upload: DatasetUploadSession, file: BodyInit): Promise<void> {
-    return uploadDatasetFile(upload, file, this.fetchImpl);
+    return uploadDatasetFile(upload, file, this.fetchImpl ?? globalThis.fetch);
   }
 
   /** Open or recover an upload session for another version of a dataset. */
@@ -312,13 +332,18 @@ export class QTSurfer {
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  listStrategies(): Promise<StrategySummary[]> {
+  getStrategies(): Promise<StrategySummary[]> {
     return listStrategies();
+  }
+
+  /** @deprecated Use {@link QTSurfer.getStrategies}. */
+  listStrategies(): Promise<StrategySummary[]> {
+    return this.getStrategies();
   }
 
   /**
    * Release a registered strategy: removes it from both {@link
-   * QTSurfer.getStrategy} and {@link QTSurfer.listStrategies}.
+   * QTSurfer.getStrategy} and {@link QTSurfer.getStrategies}.
    *
    * Backtests already run against this strategy are unaffected, and
    * re-submitting the same source afterwards registers a **new** strategy

@@ -62,7 +62,7 @@ describe('QTSurfer.listExchanges', () => {
 
     const qts = await client();
 
-    await expect(qts.listExchanges()).resolves.toEqual(exchanges);
+    await expect(qts.getExchanges()).resolves.toEqual(exchanges);
     expect(apiListExchanges).toHaveBeenCalledTimes(1);
   });
 
@@ -72,7 +72,7 @@ describe('QTSurfer.listExchanges', () => {
     const qts = await client();
     const { QTSError } = await import('../../src/errors');
 
-    const promise = qts.listExchanges();
+    const promise = qts.getExchanges();
     await expect(promise).rejects.toBeInstanceOf(QTSError);
     await expect(promise).rejects.toMatchObject({
       status: 503,
@@ -92,14 +92,14 @@ describe('QTSurfer.listInstruments', () => {
 
     const qts = await client();
 
-    await expect(qts.listInstruments('binance')).resolves.toEqual([BTC, ETH]);
+    await expect(qts.getInstruments('binance')).resolves.toEqual([BTC, ETH]);
   });
 
   it('hits the default-segment route when no segment is given', async () => {
     apiListInstruments.mockResolvedValue(ok(envelope([BTC])));
 
     const qts = await client();
-    await qts.listInstruments('binance');
+    await qts.getInstruments('binance');
 
     expect(apiListInstruments).toHaveBeenCalledTimes(1);
     expect(apiListInstruments).toHaveBeenCalledWith({
@@ -112,7 +112,7 @@ describe('QTSurfer.listInstruments', () => {
     apiListSegmentInstruments.mockResolvedValue(ok(envelope([BTC], 'futures')));
 
     const qts = await client();
-    await expect(qts.listInstruments('binance', 'futures')).resolves.toEqual([BTC]);
+    await expect(qts.getInstruments('binance', 'futures')).resolves.toEqual([BTC]);
 
     expect(apiListSegmentInstruments).toHaveBeenCalledTimes(1);
     expect(apiListSegmentInstruments).toHaveBeenCalledWith({
@@ -125,7 +125,7 @@ describe('QTSurfer.listInstruments', () => {
     apiListSegmentInstruments.mockResolvedValue(ok(envelope([BTC])));
 
     const qts = await client();
-    await qts.listInstruments('binance', 'spot');
+    await qts.getInstruments('binance', 'spot');
 
     expect(apiListSegmentInstruments).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', segment: 'spot' },
@@ -138,7 +138,7 @@ describe('QTSurfer.listInstruments', () => {
 
     const qts = await client();
 
-    await expect(qts.listInstruments('binance')).resolves.toEqual([]);
+    await expect(qts.getInstruments('binance')).resolves.toEqual([]);
   });
 
   it('throws QTSError carrying the HTTP status on a 404', async () => {
@@ -147,7 +147,7 @@ describe('QTSurfer.listInstruments', () => {
     const qts = await client();
     const { QTSError } = await import('../../src/errors');
 
-    const promise = qts.listInstruments('nope');
+    const promise = qts.getInstruments('nope');
     await expect(promise).rejects.toBeInstanceOf(QTSError);
     await expect(promise).rejects.toMatchObject({
       status: 404,

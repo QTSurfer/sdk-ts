@@ -25,5 +25,5 @@ await qts.uploadDatasetFile(next, correctedCsvText);
 await qts.finalizeDatasetUpload(created.datasetId, next.uploadId);
 ```
 
-Use `exchangeId: 'user'` and `datasetId` (optionally `datasetVersionId`) in `backtest` or `sweep`.
+Use `exchangeId: 'user'` and `datasetId` (optionally `datasetVersionId`) in `executeBacktest` or `sweep`.
 Those workflows still prepare the requested window before execution.

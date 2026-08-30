@@ -147,7 +147,7 @@ export async function getStrategy(strategyId: string): Promise<StrategyState> {
 }
 
 /**
- * One entry in {@link QTSurfer.listStrategies}'s result: the same provenance
+ * One entry in {@link QTSurfer.getStrategies}'s result: the same provenance
  * {@link QTSurfer.getStrategy} reports — `compiledAt`, `requiredSources` — but
  * never `validation`, which is what keeps listing cheap no matter how many
  * strategies you have registered. Check a specific strategy's verdict with
@@ -180,7 +180,7 @@ export async function listStrategies(): Promise<StrategySummary[]> {
 
 /**
  * Release a registered strategy: removes it from both {@link
- * QTSurfer.getStrategy} and {@link QTSurfer.listStrategies}.
+ * QTSurfer.getStrategy} and {@link QTSurfer.getStrategies}.
  *
  * **Does not undo anything already run.** Backtests you ran against this
  * strategy before deleting it are completely unaffected — deleting only

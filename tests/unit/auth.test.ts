@@ -272,9 +272,24 @@ describe('AuthenticatedClient refresh-on-401', () => {
     // These calls throw a plain QTSError that carries `status`, which is what
     // makes the refresh fire at all — the backtest workflow's stage errors do
     // not carry one and so are never retried.
-    await expect(session.listExchanges()).resolves.toEqual(exchanges);
+    await expect(session.getExchanges()).resolves.toEqual(exchanges);
     expect(apiAuth).toHaveBeenCalledTimes(2);
     expect(apiListExchanges).toHaveBeenCalledTimes(2);
     expect(setConfig.mock.calls.at(-1)?.[0]?.headers?.Authorization).toBe('Bearer jwt-2');
+  });
+
+  it('uses platform fetch for a dataset upload when none is configured', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchImpl);
+    const { AuthenticatedClient } = await import('../../src/auth/session');
+    const session = new AuthenticatedClient('ak');
+
+    await session.uploadDatasetFile(
+      { uploadId: 'up_1', upload: { url: 'https://upload.test', expiresInMinutes: 10 } },
+      'csv',
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://upload.test', { method: 'PUT', body: 'csv' });
+    vi.unstubAllGlobals();
   });
 });

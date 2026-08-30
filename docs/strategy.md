@@ -18,7 +18,7 @@ check passed. Poll `getStrategy` with an application deadline while validation i
 passed bounded check is a useful floor, not a trading-performance guarantee.
 
 ```ts
-const mine = await qts.listStrategies();
+const mine = await qts.getStrategies();
 const registeredSource = await qts.getStrategyCode(compiled.strategyId);
 await qts.deleteStrategy(compiled.strategyId);
 ```

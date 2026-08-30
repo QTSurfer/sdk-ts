@@ -406,7 +406,7 @@ describe('sweep workflow', () => {
     const ranked = await handle.result;
     expect(ranked.truncated).toBe(true);
 
-    const all = await handle.results({ order: 'natural', ranking: 'plateau' });
+    const all = await handle.getResults({ order: 'natural', ranking: 'plateau' });
 
     expect(all.leaderboard).toHaveLength(3);
     expect(all.order).toBe('natural');
@@ -428,12 +428,12 @@ describe('sweep workflow', () => {
     const { QTSError } = await import('../../src/errors');
     const handle = await sweep(REQ, FAST);
     await handle.result;
-    await handle.results();
+    await handle.getResults();
 
     expect(getSweepResult.mock.calls[1][0].query).toBeUndefined();
 
     getSweepResult.mockResolvedValue(err({ code: 404, message: 'gone' }, 404));
-    const failure = await handle.results().catch((e: unknown) => e);
+    const failure = await handle.getResults().catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(QTSError);
     expect(failure).toMatchObject({ status: 404 });
   });
@@ -573,7 +573,7 @@ describe('sweep workflow', () => {
     const { sweep } = await import('../../src/workflows/sweep');
     const handle = await sweep(REQ, FAST);
     await handle.result;
-    const sensitivity = await handle.sensitivity('sortino');
+    const sensitivity = await handle.getSensitivity('sortino');
 
     expect(sensitivity.heatmapsTruncated).toBe(true);
     expect(sensitivity.marginals).toHaveLength(1);
@@ -592,12 +592,12 @@ describe('sweep workflow', () => {
     const { QTSError } = await import('../../src/errors');
     const handle = await sweep(REQ, FAST);
     await handle.result;
-    await handle.sensitivity();
+    await handle.getSensitivity();
 
     expect(getSweepSensitivity.mock.calls[0][0].query).toBeUndefined();
 
     getSweepSensitivity.mockResolvedValue(err({ code: 404, message: 'gone' }, 404));
-    const failure = await handle.sensitivity().catch((e: unknown) => e);
+    const failure = await handle.getSensitivity().catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(QTSError);
     expect(failure).toMatchObject({ status: 404 });
   });
@@ -609,7 +609,7 @@ describe('sweep workflow', () => {
     }));
     const { sweep } = await import('../../src/workflows/sweep');
     const handle = await sweep(REQ, FAST);
-    await expect(handle.equityCurve(3, { outMode: 'ARRAY', resample: 100 })).resolves.toMatchObject({
+    await expect(handle.getEquityCurve(3, { outMode: 'ARRAY', resample: 100 })).resolves.toMatchObject({
       meta: { outMode: 'ARRAY' },
     });
     expect(getSweepRunEquityCurve).toHaveBeenCalledWith({

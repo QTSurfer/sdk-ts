@@ -5,11 +5,11 @@ Measured against API spec **0.111.2**: all 29 operations are reachable from the 
 | Section | SDK surface |
 | --- | --- |
 | Auth | `authenticate`, session refresh, `TokenStore` |
-| Exchange | `listExchanges`, `listInstruments`, `downloadTickers`, `downloadKlines` |
-| Strategy | `compileStrategy`, `validateStrategy`, `getStrategy`, `listStrategies`, `getStrategyCode`, `deleteStrategy` |
-| Backtesting | `backtest` workflow with progress/cancellation |
-| Sweeps | `sweep`; `Sweep.result`, `results`, `sensitivity`, `equityCurve`, `cancel` |
-| Dataset | `createDataset`, `listDatasets`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`, `finalizeDatasetUpload`, `getDatasetUpload` |
+| Market data | `getExchanges`, `getInstruments`, `downloadTickers`, `downloadKlines` |
+| Strategy | `compileStrategy`, `validateStrategy`, `getStrategy`, `getStrategies`, `getStrategyCode`, `deleteStrategy` |
+| Backtesting | `executeBacktest` workflow with progress/cancellation |
+| Sweeps | `sweep`; `Sweep.result`, `getResults`, `getSensitivity`, `getEquityCurve`, `cancel` |
+| Dataset | `createDataset`, `getDatasets`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`, `finalizeDatasetUpload`, `getDatasetUpload` |
 
 The SDK deliberately keeps `prepare` and `execute` internal to high-level workflows: their temporary
 ids and lifecycle are not useful application state, and preparation is idempotent. The generated
