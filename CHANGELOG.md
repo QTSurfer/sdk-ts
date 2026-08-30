@@ -1,10 +1,22 @@
 # @qtsurfer/sdk
 
+## 0.13.0
+
+### Minor Changes
+
+- [`21898f2`](https://github.com/QTSurfer/sdk-ts/commit/21898f2afb9c1aa08881e8338f324526559ee159) - Standardize the high-level API around action verbs and `get…` reads: use
+  `executeBacktest`, `getExchanges`, `getInstruments`, `getStrategies`,
+  `getDatasets`, and `Sweep.getResults`, `getSensitivity`, and
+  `getEquityCurve`. The previous names remain deprecated aliases for migration.
+
+  Dataset uploads now explicitly use the platform `fetch` when no custom
+  transport is configured.
+
 ## 0.12.0
 
 ### Minor Changes
 
-- [`73b8bdc`](https://github.com/QTSurfer/sdk-ts/commit/73b8bdc21adcb982b9d24a73e8c0547d1b480282) Thanks [@mrmx](https://github.com/mrmx)! - Add renewable dataset upload sessions for later dataset versions.
+- [`73b8bdc`](https://github.com/QTSurfer/sdk-ts/commit/73b8bdc21adcb982b9d24a73e8c0547d1b480282) - Add renewable dataset upload sessions for later dataset versions.
 
 ## 0.11.0
 
@@ -67,7 +79,7 @@
 
 ### Minor Changes
 
-- [`8c10191`](https://github.com/QTSurfer/sdk-ts/commit/8c101910e31f93466e3aaddac5adfe66e68b7df9) Thanks [@mrmx](https://github.com/mrmx)! - Add the platform catalog and the strategy surface to both `QTSurfer` and the authenticated session.
+- [`8c10191`](https://github.com/QTSurfer/sdk-ts/commit/8c101910e31f93466e3aaddac5adfe66e68b7df9) - Add the platform catalog and the strategy surface to both `QTSurfer` and the authenticated session.
 
   - `exchanges()` — list the exchanges the platform serves.
   - `instruments(exchangeId, segment?)` — list an exchange's instruments with their per-data-type
@@ -107,7 +119,7 @@
   New exported types: `Exchange`, `InstrumentDetail`, `InstrumentSegment`, `StrategyState`,
   `StrategyValidation`. No existing signature changed.
 
-- [`c75d606`](https://github.com/QTSurfer/sdk-ts/commit/c75d6064cf3da66bfdbc696a4e0d85f7f40e6cf6) Thanks [@mrmx](https://github.com/mrmx)! - Add parameter sweeps to both `QTSurfer` and the authenticated session.
+- [`c75d606`](https://github.com/QTSurfer/sdk-ts/commit/c75d6064cf3da66bfdbc696a4e0d85f7f40e6cf6) - Add parameter sweeps to both `QTSurfer` and the authenticated session.
 
   `sweep(request, options?)` runs the same strategy once per parameter vector over one instrument and
   one window, then scores and ranks the trials against a single objective. It is one call — compile →
@@ -224,7 +236,7 @@
 
 ### Patch Changes
 
-- [#3](https://github.com/QTSurfer/sdk-ts/pull/3) [`7d6bc6d`](https://github.com/QTSurfer/sdk-ts/commit/7d6bc6ded5c193ea50cfefb4043a893a236ba971) Thanks [@mrmx](https://github.com/mrmx)! - Bump `@qtsurfer/api-client` to `^0.6.0` (API spec 0.99.2), and pin that a `202` on the
+- [#3](https://github.com/QTSurfer/sdk-ts/pull/3) [`7d6bc6d`](https://github.com/QTSurfer/sdk-ts/commit/7d6bc6ded5c193ea50cfefb4043a893a236ba971) - Bump `@qtsurfer/api-client` to `^0.6.0` (API spec 0.99.2), and pin that a `202` on the
   execute-result poll keeps the loop running.
 
   The client bump is type-only for consumers of this SDK: `GetBacktestResultResponse` widens to a
@@ -301,7 +313,7 @@
 
 ### Minor Changes
 
-- [#1](https://github.com/QTSurfer/sdk-ts/pull/1) [`f615d67`](https://github.com/QTSurfer/sdk-ts/commit/f615d673e77472054ef51e5b8e1b94e4a630a3bc) Thanks [@mrmx](https://github.com/mrmx)! - Add `auth(apikey?, opts?)` helper that exchanges a long-lived API key for a
+- [#1](https://github.com/QTSurfer/sdk-ts/pull/1) [`f615d67`](https://github.com/QTSurfer/sdk-ts/commit/f615d673e77472054ef51e5b8e1b94e4a630a3bc) - Add `auth(apikey?, opts?)` helper that exchanges a long-lived API key for a
   short-lived JWT in one call. Returns an `AuthenticatedClient` that caches
   the token in memory (or a caller-provided `TokenStore`), refreshes on 401,
   and exposes the same workflow surface as `QTSurfer` (`backtest`, `tickers`,
@@ -318,11 +330,11 @@
 
 ### Minor Changes
 
-- [`717d50f`](https://github.com/QTSurfer/sdk-ts/commit/717d50fafcb5cd32f5056a07b67c426f5eb7fd73) Thanks [@mrmx](https://github.com/mrmx)! - Add `qts.tickers({ exchangeId, base, quote, hour, format? })` and `qts.klines(...)` — stream one hour of raw tickers or klines as a `Blob`. Wire format selectable via `format: 'lastra' | 'parquet'` (Lastra default; Parquet via on-the-fly conversion). HTTP errors surface as `QTSDownloadError`, a new subclass of `QTSError`.
+- [`717d50f`](https://github.com/QTSurfer/sdk-ts/commit/717d50fafcb5cd32f5056a07b67c426f5eb7fd73) - Add `qts.tickers({ exchangeId, base, quote, hour, format? })` and `qts.klines(...)` — stream one hour of raw tickers or klines as a `Blob`. Wire format selectable via `format: 'lastra' | 'parquet'` (Lastra default; Parquet via on-the-fly conversion). HTTP errors surface as `QTSDownloadError`, a new subclass of `QTSError`.
 
 ### Patch Changes
 
-- [`717d50f`](https://github.com/QTSurfer/sdk-ts/commit/717d50fafcb5cd32f5056a07b67c426f5eb7fd73) Thanks [@mrmx](https://github.com/mrmx)! - Bump `@qtsurfer/api-client` to `^0.1.2` (adds the `getExchangeTickersHour` / `getExchangeKlinesHour` operations) and extend the local `JobStatus` union with `Partial` so the regenerated `JobState` schema type-checks against `runStage` (the backend already emits `Partial` during cold-fallback prepare jobs).
+- [`717d50f`](https://github.com/QTSurfer/sdk-ts/commit/717d50fafcb5cd32f5056a07b67c426f5eb7fd73) - Bump `@qtsurfer/api-client` to `^0.1.2` (adds the `getExchangeTickersHour` / `getExchangeKlinesHour` operations) and extend the local `JobStatus` union with `Partial` so the regenerated `JobState` schema type-checks against `runStage` (the backend already emits `Partial` during cold-fallback prepare jobs).
 
 ## 0.1.2
 
