@@ -65,6 +65,11 @@ export interface BacktestRequest {
   storeSignals?: boolean;
   /** Optional server-side transform for the returned equity curve. */
   equityCurve?: EquityCurveOptions;
+  /**
+   * Strategy-property values for this execution. Keys are declared property names;
+   * values are scalars only. Omit the field to use the strategy defaults.
+   */
+  params?: Record<string, number | string | boolean>;
 }
 
 /**
@@ -174,6 +179,7 @@ async function executeStrategy(
       strategyId,
       ...(req.storeSignals !== undefined ? { storeSignals: req.storeSignals } : {}),
       ...(req.equityCurve !== undefined ? { equityCurve: req.equityCurve } : {}),
+      ...(req.params !== undefined ? { params: req.params } : {}),
     },
     ...(opts.signal ? { signal: opts.signal } : {}),
   });

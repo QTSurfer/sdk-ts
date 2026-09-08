@@ -23,6 +23,23 @@ const result = await qts.executeBacktest({
 const curve = result.equityCurve;
 ```
 
+## Re-running with strategy properties
+
+Pass scalar `params` to apply declared strategy properties without recompiling the strategy
+yourself. Keys are the names exposed by the strategy, rather than necessarily its Java field names.
+Leave a property out to retain its declared default; arrays, ranges, and `null` are not valid here.
+Use `sweep()` for ranges or lists.
+
+```ts
+const result = await qts.executeBacktest({
+  strategy: source, exchangeId: 'binance', instrument: 'BTC/USDT', from, to,
+  params: { 'ema.fast.period': 9, 'ema.slow.period': 21, 'risk.pct': 0.5 },
+});
+
+// Present only when the execution was parameterised.
+console.log(result.params);
+```
+
 For sweep retention, pass `equityCurve` on `SweepRequest`, then read a retained trial with
 `handle.getEquityCurve(runIx, options?)`. Non-retained rows answer `404`. The shared API
 [equity-curve guide](https://qtsurfer.github.io/docs/equity_curves.html) defines transforms,

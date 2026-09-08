@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.14.0
+
+### Minor Changes
+
+- Allow backtest executions to submit scalar strategy-property values and expose their echoed result values.
+
 ## 0.13.0
 
 ### Minor Changes

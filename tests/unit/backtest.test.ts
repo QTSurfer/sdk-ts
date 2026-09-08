@@ -95,6 +95,31 @@ describe('backtest workflow', () => {
     expect(stages).toContain('executing');
   });
 
+  it('forwards scalar strategy-property values to the execution', async () => {
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    getPrepareStatus.mockResolvedValue(
+      ok({ status: 'Completed', size: 1, completed: 1 }),
+    );
+    executeBacktest.mockResolvedValue(ok({ jobId: 'exec-1' }));
+    getBacktestResult.mockResolvedValue(
+      ok({
+        state: { status: 'Completed', size: 1, completed: 1 },
+        results: { strategyId: 'strategy-abc', instrument: 'BTC/USDT', params: { period: 9 } },
+      }),
+    );
+
+    const { backtest } = await import('../../src/workflows/backtest');
+    const result = await backtest({ ...REQ, params: { period: 9, enabled: true } }, { pollIntervalMs: 1 });
+
+    expect(executeBacktest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ params: { period: 9, enabled: true } }),
+      }),
+    );
+    expect(result.params).toEqual({ period: 9 });
+  });
+
   it('compiles in a single request, with no status polling', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));

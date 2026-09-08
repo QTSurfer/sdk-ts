@@ -109,6 +109,10 @@ Polling uses exponential backoff (`intervalMs * 1.5`, capped at `maxIntervalMs`)
 
 Progress is emitted on every stage transition and after each poll whose `size > 0`.
 
+Pass scalar `params` on this request to run with declared strategy-property values; the completed
+result echoes them in `result.params`. See the [backtesting guide](docs/backtesting.md#re-running-with-strategy-properties)
+for constraints and an example.
+
 ## Parameter sweeps
 
 `sweep()` runs the same strategy once per parameter vector over one instrument and one window,
