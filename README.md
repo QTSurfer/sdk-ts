@@ -24,6 +24,8 @@ The hand-written guides mirror the SDK family structure. TypeDoc remains the gen
 
 ## Installation
 
+Requires Node.js 22 or later.
+
 ```bash
 npm install @qtsurfer/sdk
 # or

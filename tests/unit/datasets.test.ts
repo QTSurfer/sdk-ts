@@ -7,6 +7,8 @@ const apiDeleteDataset = vi.fn();
 const apiFinalizeDatasetUpload = vi.fn();
 const apiGetDatasetUpload = vi.fn();
 const apiOpenDatasetUpload = vi.fn();
+const apiImportDataset = vi.fn();
+const apiGetDatasetImport = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   listDatasets: apiListDatasets,
@@ -16,14 +18,27 @@ vi.mock('@qtsurfer/api-client', () => ({
   finalizeDatasetUpload: apiFinalizeDatasetUpload,
   getDatasetUpload: apiGetDatasetUpload,
   openDatasetUpload: apiOpenDatasetUpload,
+  importDataset: apiImportDataset,
+  getDatasetImport: apiGetDatasetImport,
 }));
 
 const ok = <T>(data: T, status = 200) => ({ data, error: undefined, response: { status } as Response });
 
 describe('dataset workflow', () => {
   beforeEach(() => {
-    [apiListDatasets, apiCreateDataset, apiGetDataset, apiDeleteDataset, apiFinalizeDatasetUpload, apiGetDatasetUpload, apiOpenDatasetUpload]
+    [apiListDatasets, apiCreateDataset, apiGetDataset, apiDeleteDataset, apiFinalizeDatasetUpload, apiGetDatasetUpload, apiOpenDatasetUpload, apiImportDataset, apiGetDatasetImport]
       .forEach((mock) => mock.mockReset());
+  });
+
+  it('starts an external import and reads its state', async () => {
+    apiImportDataset.mockResolvedValue(ok({ datasetId: 'ds_1', importId: 'imp_1', jobId: 'job_1', status: 'fetching' }, 202));
+    apiGetDatasetImport.mockResolvedValue(ok({ importId: 'imp_1', status: 'ready' }));
+    const datasets = await import('../../src/workflows/datasets');
+    const request = { name: 'WETH/USDC', instrument: 'WETH/USDC', from: '2026-08-01T00:00:00Z', to: '2026-08-02T00:00:00Z', type: 'dex', dex: { network: 'ethereum', contract: '0x1' } } as never;
+    await expect(datasets.importDataset(request)).resolves.toMatchObject({ importId: 'imp_1' });
+    await expect(datasets.getDatasetImport('ds_1', 'imp_1')).resolves.toMatchObject({ status: 'ready' });
+    expect(apiImportDataset).toHaveBeenCalledWith({ body: request });
+    expect(apiGetDatasetImport).toHaveBeenCalledWith({ path: { datasetId: 'ds_1', importId: 'imp_1' } });
   });
 
   afterEach(() => {

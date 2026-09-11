@@ -25,14 +25,19 @@ import {
   createDataset,
   deleteDataset,
   finalizeDatasetUpload,
+  getDatasetImport,
   getDataset,
   getDatasetUpload,
   listDatasets,
+  importDataset,
   openDatasetUpload,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
   type DatasetDetail,
+  type DatasetImport,
+  type DatasetImportRequest,
+  type DatasetImportState,
   type DatasetUpload,
   type DatasetUploadSession,
   type DatasetUploadState,
@@ -273,6 +278,16 @@ export class AuthenticatedClient {
   /** Create a dataset and return its one-time presigned upload session. */
   createDataset(request: CreateDatasetRequest): Promise<DatasetUpload> {
     return this.withRefreshOn401(() => createDataset(request));
+  }
+
+  /** Start an external-history dataset import. Refreshes once on 401. */
+  importDataset(request: DatasetImportRequest): Promise<DatasetImport> {
+    return this.withRefreshOn401(() => importDataset(request));
+  }
+
+  /** Read an external-history import's state. Refreshes once on 401. */
+  getDatasetImport(datasetId: string, importId: string): Promise<DatasetImportState> {
+    return this.withRefreshOn401(() => getDatasetImport(datasetId, importId));
   }
 
   /** Read a dataset and its current-version metadata. Refreshes once on 401. */

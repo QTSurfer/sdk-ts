@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.15.0
+
+### Minor Changes
+
+- Add external dataset imports and backtest base configuration. Require Node.js 22 or later.
+
 ## 0.14.0
 
 ### Minor Changes

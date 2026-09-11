@@ -4,12 +4,17 @@ import {
   finalizeDatasetUpload as apiFinalizeDatasetUpload,
   getDataset as apiGetDataset,
   getDatasetUpload as apiGetDatasetUpload,
+  getDatasetImport as apiGetDatasetImport,
+  importDataset as apiImportDataset,
   listDatasets as apiListDatasets,
   openDatasetUpload as apiOpenDatasetUpload,
   type Dataset as ApiDataset,
   type DatasetCreated as ApiDatasetCreated,
   type DatasetUploadState as ApiDatasetUploadState,
   type DatasetUploadSession as ApiDatasetUploadSession,
+  type DatasetImportCreated as ApiDatasetImportCreated,
+  type DatasetImportRequest as ApiDatasetImportRequest,
+  type DatasetImportState as ApiDatasetImportState,
   type DatasetWithLinks as ApiDatasetWithLinks,
   type Instrument,
 } from '@qtsurfer/api-client';
@@ -22,6 +27,9 @@ export type DatasetUpload = ApiDatasetCreated;
 /** A presigned upload session for another version of an existing dataset. */
 export type DatasetUploadSession = ApiDatasetUploadSession;
 export type DatasetUploadState = ApiDatasetUploadState;
+export type DatasetImportRequest = ApiDatasetImportRequest;
+export type DatasetImport = ApiDatasetImportCreated;
+export type DatasetImportState = ApiDatasetImportState;
 
 export interface CreateDatasetRequest {
   name: string;
@@ -39,6 +47,22 @@ export async function createDataset(request: CreateDatasetRequest): Promise<Data
   const { data, error, response } = await apiCreateDataset({ body: request });
   if (error) throw requestFailed('create dataset call', error, response?.status);
   if (!data) throw new QTSError('Empty create dataset response');
+  return data;
+}
+
+/** Start an external-history import and return its dataset and import identifiers. */
+export async function importDataset(request: DatasetImportRequest): Promise<DatasetImport> {
+  const { data, error, response } = await apiImportDataset({ body: request });
+  if (error) throw requestFailed('import dataset call', error, response?.status);
+  if (!data) throw new QTSError('Empty import dataset response');
+  return data;
+}
+
+/** Read one external-history import's fetch and ingestion state. */
+export async function getDatasetImport(datasetId: string, importId: string): Promise<DatasetImportState> {
+  const { data, error, response } = await apiGetDatasetImport({ path: { datasetId, importId } });
+  if (error) throw requestFailed('dataset import call', error, response?.status);
+  if (!data) throw new QTSError('Empty dataset import response');
   return data;
 }
 

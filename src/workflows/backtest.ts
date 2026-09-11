@@ -4,6 +4,7 @@ import {
   getBacktestResult,
   type EquityCurveOptions,
   type ResultMap,
+  type SweepBaseConfig,
 } from '@qtsurfer/api-client';
 import { QTSCanceledError, QTSExecutionError } from '../errors';
 import {
@@ -65,6 +66,8 @@ export interface BacktestRequest {
   storeSignals?: boolean;
   /** Optional server-side transform for the returned equity curve. */
   equityCurve?: EquityCurveOptions;
+  /** Capital, fee, and position-size overrides for this execution. */
+  baseConfig?: SweepBaseConfig;
   /**
    * Strategy-property values for this execution. Keys are declared property names;
    * values are scalars only. Omit the field to use the strategy defaults.
@@ -179,6 +182,7 @@ async function executeStrategy(
       strategyId,
       ...(req.storeSignals !== undefined ? { storeSignals: req.storeSignals } : {}),
       ...(req.equityCurve !== undefined ? { equityCurve: req.equityCurve } : {}),
+      ...(req.baseConfig !== undefined ? { baseConfig: req.baseConfig } : {}),
       ...(req.params !== undefined ? { params: req.params } : {}),
     },
     ...(opts.signal ? { signal: opts.signal } : {}),

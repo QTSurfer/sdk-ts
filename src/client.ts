@@ -21,14 +21,19 @@ import {
   createDataset,
   deleteDataset,
   finalizeDatasetUpload,
+  getDatasetImport,
   getDataset,
   getDatasetUpload,
   listDatasets,
+  importDataset,
   openDatasetUpload,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
   type DatasetDetail,
+  type DatasetImport,
+  type DatasetImportRequest,
+  type DatasetImportState,
   type DatasetUpload,
   type DatasetUploadSession,
   type DatasetUploadState,
@@ -236,6 +241,16 @@ export class QTSurfer {
   /** Create a dataset and return the one-time presigned upload session. */
   createDataset(request: CreateDatasetRequest): Promise<DatasetUpload> {
     return createDataset(request);
+  }
+
+  /** Start an external-history dataset import. */
+  importDataset(request: DatasetImportRequest): Promise<DatasetImport> {
+    return importDataset(request);
+  }
+
+  /** Read an external-history import's fetch and ingestion state. */
+  getDatasetImport(datasetId: string, importId: string): Promise<DatasetImportState> {
+    return getDatasetImport(datasetId, importId);
   }
 
   /** Read one dataset and its current-version metadata. */
