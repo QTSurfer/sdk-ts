@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.16.0
+
+### Minor Changes
+
+- Add Live Execution REST and real-time signal support.
+
 ## 0.15.0
 
 ### Minor Changes

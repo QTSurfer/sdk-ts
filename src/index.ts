@@ -6,6 +6,19 @@
  */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export {
+  DEFAULT_LIVE_URL,
+  LiveConnection,
+  LiveSignalCursorExpiredError,
+  getLive,
+  getLiveSignals,
+  listPublicLive,
+  startLive,
+  stopLive,
+  updateLive,
+  updateLiveParams,
+  type LiveConnectionOptions,
+} from './live';
+export {
   QTSError,
   QTSStrategyCompileError,
   QTSPreparationError,

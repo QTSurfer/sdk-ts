@@ -56,6 +56,27 @@ import {
   type SweepOptions,
   type SweepRequest,
 } from './workflows/sweep';
+import {
+  LiveConnection,
+  getLive,
+  getLiveSignals,
+  listPublicLive,
+  startLive,
+  stopLive,
+  updateLive,
+  updateLiveParams,
+  type LiveConnectionOptions,
+} from './live';
+import type {
+  LiveParamsUpdateResult,
+  LiveRun,
+  LiveRunCompact,
+  LiveSignalPage,
+  PublicLiveListResponse,
+  StartLiveRequest,
+  UpdateLiveParamsRequest,
+  UpdateLiveRequest,
+} from '@qtsurfer/api-client';
 
 /** Configuration for {@link QTSurfer}. */
 export interface QTSurferOptions {
@@ -69,6 +90,8 @@ export interface QTSurferOptions {
   token?: string;
   /** Inject a custom `fetch` (Node 20+, browser, or test mock). */
   fetch?: typeof fetch;
+  /** Override the Centrifugo endpoint used by {@link QTSurfer.connectLive}. */
+  liveUrl?: string;
 }
 
 /** Selects one hour of tickers or klines for a single instrument. */
@@ -97,9 +120,11 @@ export interface DownloadHourArgs {
  */
 export class QTSurfer {
   private readonly fetchImpl: typeof fetch | undefined;
+  private readonly liveUrl: string | undefined;
 
   constructor(options: QTSurferOptions) {
     this.fetchImpl = options.fetch;
+    this.liveUrl = options.liveUrl;
     apiClient.setConfig({
       baseUrl: options.baseUrl,
       ...(options.token
@@ -107,6 +132,45 @@ export class QTSurfer {
         : {}),
       ...(options.fetch ? { fetch: options.fetch } : {}),
     });
+  }
+
+  /** Connect to a live run's real-time signal channel. */
+  connectLive(
+    runId: string,
+    options: Omit<LiveConnectionOptions, 'url'>,
+  ): Promise<LiveConnection> {
+    return LiveConnection.connect(runId, { ...options, url: this.liveUrl });
+  }
+
+  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
+    return startLive(strategyId, request);
+  }
+
+  getLive(strategyId: string): Promise<LiveRun> {
+    return getLive(strategyId);
+  }
+
+  stopLive(strategyId: string): Promise<LiveRun> {
+    return stopLive(strategyId);
+  }
+
+  listPublicLive(query?: { cursor?: string; limit?: number }): Promise<PublicLiveListResponse> {
+    return listPublicLive(query);
+  }
+
+  updateLive(runId: string, request: UpdateLiveRequest): Promise<LiveRunCompact> {
+    return updateLive(runId, request);
+  }
+
+  updateLiveParams(runId: string, request: UpdateLiveParamsRequest): Promise<LiveParamsUpdateResult> {
+    return updateLiveParams(runId, request);
+  }
+
+  getLiveSignals(
+    runId: string,
+    query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number },
+  ): Promise<LiveSignalPage> {
+    return getLiveSignals(runId, query);
   }
 
   /**

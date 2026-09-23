@@ -20,6 +20,7 @@ The hand-written guides mirror the SDK family structure. TypeDoc remains the gen
 - [Strategies and validation](docs/strategy.md)
 - [Backtests and parameter sweeps](docs/backtesting.md)
 - [Dataset uploads](docs/datasets.md)
+- [Live Execution](docs/live.md)
 - [API coverage](docs/api-coverage.md)
 
 ## Installation
