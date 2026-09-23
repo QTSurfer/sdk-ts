@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.16.1
+
+### Patch Changes
+
+- Document retained live-signal pagination and export its response types from the SDK.
+
 ## 0.16.0
 
 ### Minor Changes

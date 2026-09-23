@@ -88,7 +88,15 @@ export async function updateLiveParams(
   return data;
 }
 
-/** Read retained signals, restarting without a cursor when it has expired. */
+/**
+ * Read a page of retained signals for a live run.
+ *
+ * Use the returned {@link LiveSignalPage}'s `_links.next.href` to obtain the
+ * cursor for the next page. If the requested cursor is older than retention,
+ * this throws
+ * {@link LiveSignalCursorExpiredError}; resume without a cursor from the
+ * earliest timestamp reported by the error.
+ */
 export async function getLiveSignals(
   runId: string,
   query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number },

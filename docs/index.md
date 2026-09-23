@@ -8,4 +8,5 @@ The generated [TypeDoc API reference](js/index.html) documents every exported ty
 - [Strategies and validation](strategy.md)
 - [Backtests and parameter sweeps](backtesting.md)
 - [Dataset uploads](datasets.md)
+- [Live Execution](live.md)
 - [API coverage](api-coverage.md)

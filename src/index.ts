@@ -18,6 +18,17 @@ export {
   updateLiveParams,
   type LiveConnectionOptions,
 } from './live';
+export type {
+  LiveParamsUpdateResult,
+  LiveRun,
+  LiveRunCompact,
+  LiveSignal,
+  LiveSignalPage,
+  PublicLiveListResponse,
+  StartLiveRequest,
+  UpdateLiveParamsRequest,
+  UpdateLiveRequest,
+} from '@qtsurfer/api-client';
 export {
   QTSError,
   QTSStrategyCompileError,
