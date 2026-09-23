@@ -59,6 +59,7 @@ import {
 import {
   LiveConnection,
   getLive,
+  getNextLiveSignals,
   getLiveSignals,
   listPublicLive,
   startLive,
@@ -67,6 +68,8 @@ import {
   updateLiveParams,
   type LiveConnectionOptions,
 } from './live';
+import { getAccount, getAccountUsage } from './account';
+import type { Account, AccountUsage } from '@qtsurfer/api-client';
 import type {
   LiveParamsUpdateResult,
   LiveRun,
@@ -134,6 +137,16 @@ export class QTSurfer {
     });
   }
 
+  /** Read the authenticated account's tier and limits. */
+  getAccount(): Promise<Account> {
+    return getAccount();
+  }
+
+  /** Read the authenticated account's current resource and storage usage. */
+  getAccountUsage(): Promise<AccountUsage> {
+    return getAccountUsage();
+  }
+
   /** Connect to a live run's real-time signal channel. */
   connectLive(
     runId: string,
@@ -171,6 +184,10 @@ export class QTSurfer {
     query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number },
   ): Promise<LiveSignalPage> {
     return getLiveSignals(runId, query);
+  }
+
+  getNextLiveSignals(runId: string, page: LiveSignalPage): Promise<LiveSignalPage | undefined> {
+    return getNextLiveSignals(runId, page);
   }
 
   /**

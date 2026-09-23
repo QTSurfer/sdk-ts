@@ -1,5 +1,13 @@
 # Strategies and validation
 
+Start with an authenticated session; every snippet below uses `qts`:
+
+```ts
+import { authenticate } from '@qtsurfer/sdk';
+
+const qts = await authenticate(); // reads QTSURFER_APIKEY
+```
+
 `compileStrategy` registers Java source and returns its `strategyId`. Validate before an expensive
 run: validation loads the class and drives a bounded synthetic series.
 

@@ -110,6 +110,18 @@ export async function getLiveSignals(
   return data;
 }
 
+/** Continue a retained-signal page without requiring callers to parse its HAL link. */
+export async function getNextLiveSignals(
+  runId: string,
+  page: LiveSignalPage,
+): Promise<LiveSignalPage | undefined> {
+  const href = page._links?.next?.href;
+  if (!href) return undefined;
+  const cursor = new URL(href, 'https://api.qtsurfer.invalid').searchParams.get('cursor');
+  if (!cursor) throw new QTSError('Live signal continuation link has no cursor');
+  return getLiveSignals(runId, { cursor });
+}
+
 /**
  * A managed connection to one Live Execution signal channel.
  *

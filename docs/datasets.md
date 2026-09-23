@@ -1,5 +1,13 @@
 # Dataset uploads
 
+Start with an authenticated session; every snippet below uses `qts`:
+
+```ts
+import { authenticate } from '@qtsurfer/sdk';
+
+const qts = await authenticate(); // reads QTSURFER_APIKEY
+```
+
 Use datasets for your own ticker CSV. The SDK authenticates metadata calls but uploads bytes straight
 to the presigned target without a bearer token or API key.
 

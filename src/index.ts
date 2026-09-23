@@ -5,11 +5,14 @@
  * symbol's own doc comment for behavior and retry semantics.
  */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
+export { getAccount, getAccountUsage } from './account';
+export type { Account, AccountUsage } from '@qtsurfer/api-client';
 export {
   DEFAULT_LIVE_URL,
   LiveConnection,
   LiveSignalCursorExpiredError,
   getLive,
+  getNextLiveSignals,
   getLiveSignals,
   listPublicLive,
   startLive,

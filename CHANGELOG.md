@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.17.0
+
+### Minor Changes
+
+- Add account helpers and live-signal pagination helpers, and support the OpenAPI 0.126.2 client.
+
 ## 0.16.1
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # Exchanges, instruments, and downloads
 
+Start with an authenticated session; every snippet below uses `qts`:
+
+```ts
+import { authenticate } from '@qtsurfer/sdk';
+
+const qts = await authenticate(); // reads QTSURFER_APIKEY
+```
+
 Discover the available catalog before selecting a data window. `getInstruments` unwraps the API's
 HAL envelope and returns the instrument array; coverage is live platform state and is not cached.
 

@@ -1,5 +1,13 @@
 # Backtests and parameter sweeps
 
+Start with an authenticated session; every snippet below uses `qts`:
+
+```ts
+import { authenticate } from '@qtsurfer/sdk';
+
+const qts = await authenticate(); // reads QTSURFER_APIKEY
+```
+
 `executeBacktest` owns compile, prepare, execution, and polling. It returns the completed result, while
 `onProgress`, `AbortSignal`, and timeout options make caller policy explicit.
 

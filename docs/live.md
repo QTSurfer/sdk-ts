@@ -1,11 +1,20 @@
 # Live Execution
 
+Start with an authenticated session; every snippet below uses `qts`:
+
+```ts
+import { authenticate } from '@qtsurfer/sdk';
+
+const qts = await authenticate(); // reads QTSURFER_APIKEY
+```
+
 `QTSurfer.connectLive()` opens a managed [Centrifugo](https://centrifugal.dev/) connection for one live
 run. The SDK mints and refreshes its connection token through the configured
 REST client; `centrifuge` handles reconnects and server pings.
 
 ```ts
-const connection = await qts.connectLive(runId, {
+const run = await qts.startLive(strategyId, { name: 'ETH breakout', relay: true });
+const connection = await qts.connectLive(run.runId, {
   onSignal(signal) {
     console.log(signal.signalId, signal.kind);
   },
@@ -16,6 +25,7 @@ const connection = await qts.connectLive(runId, {
 
 await connection.updateParams({ emaFastPeriod: '12' });
 connection.disconnect();
+await qts.stopLive(strategyId);
 ```
 
 Start the run with `relay: true`; signals are emitted only after it reaches the
@@ -32,11 +42,8 @@ for (const signal of page.signals) {
   console.log(signal.signalId, signal.kind);
 }
 
-const nextHref = page._links?.next?.href;
-if (nextHref) {
-  const cursor = new URL(nextHref).searchParams.get('cursor');
-  const nextPage = await qts.getLiveSignals(runId, { cursor: cursor ?? undefined });
-}
+const nextPage = await qts.getNextLiveSignals(runId, page);
+nextPage?.signals.forEach((signal) => console.log(signal.signalId));
 ```
 
 When `LiveSignalCursorExpiredError` is thrown, restart without `cursor`. The
