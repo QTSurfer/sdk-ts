@@ -94,7 +94,7 @@ If you already hold a JWT and want to manage refresh yourself, the
 import { QTSurfer } from '@qtsurfer/sdk';
 
 const qts = new QTSurfer({
-  baseUrl: 'https://api.qtsurfer.com/v1',
+  baseUrl: 'https://api.qtsurfer.net/v1', //Staging beta server
   token: process.env.QTSURFER_TOKEN,
 });
 ```

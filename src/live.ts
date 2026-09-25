@@ -1,8 +1,11 @@
 import { Centrifuge } from 'centrifuge';
 import {
   getLive as apiGetLive,
+  getLiveRunPaper as apiGetLiveRunPaper,
+  getLiveRunPaperEquity as apiGetLiveRunPaperEquity,
   getLiveRunSignals as apiGetLiveRunSignals,
   listPublicLive as apiListPublicLive,
+  listLive as apiListLive,
   mintLiveConnectionToken,
   startLive as apiStartLive,
   stopLive as apiStopLive,
@@ -13,6 +16,9 @@ import {
   type LiveParamsUpdateResult,
   type LiveSignal,
   type LiveSignalPage,
+  type LivePaper,
+  type LivePaperEquityPage,
+  type LiveListResponse,
   type PublicLiveListResponse,
   type StartLiveRequest,
   type UpdateLiveParamsRequest,
@@ -51,6 +57,51 @@ export async function getLive(strategyId: string): Promise<LiveRun> {
   if (error) throw requestFailed('get live call', error, response?.status);
   if (!data) throw new QTSError('Empty get-live response');
   return data;
+}
+
+/** List live runs owned by the authenticated account. */
+export async function listLive(query?: { cursor?: string; limit?: number }): Promise<LiveListResponse> {
+  const { data, error, response } = await apiListLive({ query });
+  if (error) throw requestFailed('list live call', error, response?.status);
+  if (!data) throw new QTSError('Empty live-list response');
+  return data;
+}
+
+/** Read paper-trading accounts and open positions for a run. */
+export async function getLiveRunPaper(runId: string): Promise<LivePaper> {
+  const { data, error, response } = await apiGetLiveRunPaper({ path: { runId } });
+  if (error) throw requestFailed('get live paper call', error, response?.status);
+  if (!data) throw new QTSError('Empty live-paper response');
+  return data;
+}
+
+/** Read paginated paper-trading equity points for a run. */
+export async function getLiveRunPaperEquity(
+  runId: string,
+  query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number },
+): Promise<LivePaperEquityPage> {
+  const { data, error, response } = await apiGetLiveRunPaperEquity({ path: { runId }, query });
+  if (error) throw requestFailed('get live paper equity call', error, response?.status);
+  if (!data) throw new QTSError('Empty live-paper-equity response');
+  return data;
+}
+
+/** Continue a paper-equity page while retaining its currency and size filters. */
+export async function getNextLiveRunPaperEquity(
+  runId: string,
+  page: LivePaperEquityPage,
+): Promise<LivePaperEquityPage | undefined> {
+  const href = page._links?.next?.href;
+  if (!href) return undefined;
+  const params = new URL(href, 'https://api.qtsurfer.invalid').searchParams;
+  const cursor = params.get('cursor');
+  if (!cursor) throw new QTSError('Paper equity continuation link has no cursor');
+  return getLiveRunPaperEquity(runId, {
+    cursor,
+    ...(params.has('currency') ? { currency: params.get('currency')! } : {}),
+    ...(params.has('limit') ? { limit: Number(params.get('limit')) } : {}),
+    ...(params.has('sinceMs') ? { sinceMs: Number(params.get('sinceMs')) } : {}),
+  });
 }
 
 /** Stop a strategy's active live run. */
@@ -99,7 +150,7 @@ export async function updateLiveParams(
  */
 export async function getLiveSignals(
   runId: string,
-  query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number },
+  query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number; type?: LiveSignal['type'] },
 ): Promise<LiveSignalPage> {
   const { data, error, response } = await apiGetLiveRunSignals({ path: { runId }, query });
   if (response?.status === 410) {
@@ -119,7 +170,14 @@ export async function getNextLiveSignals(
   if (!href) return undefined;
   const cursor = new URL(href, 'https://api.qtsurfer.invalid').searchParams.get('cursor');
   if (!cursor) throw new QTSError('Live signal continuation link has no cursor');
-  return getLiveSignals(runId, { cursor });
+  const params = new URL(href, 'https://api.qtsurfer.invalid').searchParams;
+  return getLiveSignals(runId, {
+    cursor,
+    ...(params.has('instrument') ? { instrument: params.get('instrument')! } : {}),
+    ...(params.has('limit') ? { limit: Number(params.get('limit')) } : {}),
+    ...(params.has('sinceMs') ? { sinceMs: Number(params.get('sinceMs')) } : {}),
+    ...(params.has('type') ? { type: params.get('type') as LiveSignal['type'] } : {}),
+  });
 }
 
 /**
@@ -136,11 +194,15 @@ export class LiveConnection {
   ) {}
 
   /** Connect and subscribe to `sig:<runId>`. */
-  static async connect(runId: string, options: LiveConnectionOptions): Promise<LiveConnection> {
-    const token = await mintToken();
+  static async connect(
+    runId: string,
+    options: LiveConnectionOptions,
+    tokenProvider: () => Promise<string> = mintToken,
+  ): Promise<LiveConnection> {
+    const token = await tokenProvider();
     const centrifuge = new Centrifuge(options.url ?? DEFAULT_LIVE_URL, {
       token,
-      getToken: mintToken,
+      getToken: tokenProvider,
     });
     centrifuge.on('error', (context) => options.onError?.(context));
 

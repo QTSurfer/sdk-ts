@@ -61,6 +61,10 @@ import {
   getLive,
   getNextLiveSignals,
   getLiveSignals,
+  getNextLiveRunPaperEquity,
+  getLiveRunPaper,
+  getLiveRunPaperEquity,
+  listLive,
   listPublicLive,
   startLive,
   stopLive,
@@ -74,7 +78,11 @@ import type {
   LiveParamsUpdateResult,
   LiveRun,
   LiveRunCompact,
+  LiveSignal,
   LiveSignalPage,
+  LivePaper,
+  LivePaperEquityPage,
+  LiveListResponse,
   PublicLiveListResponse,
   StartLiveRequest,
   UpdateLiveParamsRequest,
@@ -83,7 +91,7 @@ import type {
 
 /** Configuration for {@link QTSurfer}. */
 export interface QTSurferOptions {
-  /** Base URL of the QTSurfer API, e.g. `https://api.qtsurfer.com/v1`. */
+  /** Base URL of the QTSurfer API, e.g. `https://api.qtsurfer.net/v1`. */
   baseUrl: string;
   /**
    * Pre-obtained bearer token. When omitted, requests go out unauthenticated.
@@ -163,6 +171,25 @@ export class QTSurfer {
     return getLive(strategyId);
   }
 
+  listLive(query?: { cursor?: string; limit?: number }): Promise<LiveListResponse> {
+    return listLive(query);
+  }
+
+  getLiveRunPaper(runId: string): Promise<LivePaper> {
+    return getLiveRunPaper(runId);
+  }
+
+  getLiveRunPaperEquity(
+    runId: string,
+    query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number },
+  ): Promise<LivePaperEquityPage> {
+    return getLiveRunPaperEquity(runId, query);
+  }
+
+  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityPage): Promise<LivePaperEquityPage | undefined> {
+    return getNextLiveRunPaperEquity(runId, page);
+  }
+
   stopLive(strategyId: string): Promise<LiveRun> {
     return stopLive(strategyId);
   }
@@ -181,7 +208,7 @@ export class QTSurfer {
 
   getLiveSignals(
     runId: string,
-    query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number },
+    query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number; type?: LiveSignal['type'] },
   ): Promise<LiveSignalPage> {
     return getLiveSignals(runId, query);
   }

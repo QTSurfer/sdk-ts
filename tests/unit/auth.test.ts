@@ -84,6 +84,10 @@ describe('authenticate() helper', () => {
       'X-API-Key': 'ak_explicit',
     });
     expect(session.token?.access_token).toBe('jwt-from-arg');
+    expect(setConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      baseUrl: 'https://api.qtsurfer.net/v1',
+      headers: { Authorization: 'Bearer jwt-from-arg' },
+    });
   });
 
   it('falls back to QTSURFER_APIKEY env var when no apikey is passed', async () => {

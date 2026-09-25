@@ -34,12 +34,11 @@ jobs:
         if: success()
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          awk -v version="$VERSION" '$0 == "## " version { found=1; next } found && /^## / { exit } found { print }' \
+            CHANGELOG.md > /tmp/release-notes.md
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --notes "## @qtsurfer/sdk@${VERSION}
-
-          **npm:** [\`@qtsurfer/sdk@${VERSION}\`](https://www.npmjs.com/package/@qtsurfer/sdk/v/${VERSION})
-          **Install:** \`npm install @qtsurfer/sdk@${VERSION}\`" \
+            --notes-file /tmp/release-notes.md \
             || echo "Release already exists"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

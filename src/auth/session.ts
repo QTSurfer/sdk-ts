@@ -1,6 +1,7 @@
 import {
   authenticate as apiAuth,
   client as apiClient,
+  mintLiveConnectionToken,
   type AuthTokenResponse,
 } from '@qtsurfer/api-client';
 import { QTSAuthError } from '../errors';
@@ -61,10 +62,43 @@ import {
   type SweepRequest,
 } from '../workflows/sweep';
 import type { DownloadHourArgs } from '../client';
+import { getAccount as readAccount, getAccountUsage as readAccountUsage } from '../account';
+import {
+  LiveConnection,
+  getLive,
+  getLiveRunPaper,
+  getLiveRunPaperEquity,
+  getNextLiveRunPaperEquity,
+  getLiveSignals,
+  getNextLiveSignals,
+  listLive,
+  listPublicLive,
+  startLive,
+  stopLive,
+  updateLive,
+  updateLiveParams,
+  type LiveConnectionOptions,
+} from '../live';
+import type {
+  Account,
+  AccountUsage,
+  LiveListResponse,
+  LivePaper,
+  LivePaperEquityPage,
+  LiveParamsUpdateResult,
+  LiveRun,
+  LiveRunCompact,
+  LiveSignalPage,
+  LiveSignal,
+  PublicLiveListResponse,
+  StartLiveRequest,
+  UpdateLiveParamsRequest,
+  UpdateLiveRequest,
+} from '@qtsurfer/api-client';
 import { InMemoryTokenStore, type TokenStore } from './tokenStore';
 
 const APIKEY_ENV_VAR = 'QTSURFER_APIKEY';
-const DEFAULT_BASE_URL = 'https://api.qtsurfer.com/v1';
+const DEFAULT_BASE_URL = 'https://api.qtsurfer.net/v1';
 
 export interface AuthOptions {
   /** Base URL of the QTSurfer API. Defaults to the public production endpoint. */
@@ -169,13 +203,55 @@ export class AuthenticatedClient {
     }
   }
 
-  private async applyConfig(): Promise<void> {
+  async applyConfig(): Promise<void> {
     const token = await this.ensureToken();
     apiClient.setConfig({
       baseUrl: this.baseUrl,
       headers: { Authorization: `Bearer ${token.access_token}` },
       ...(this.fetchImpl ? { fetch: this.fetchImpl } : {}),
     });
+  }
+
+  getAccount(): Promise<Account> { return this.withRefreshOn401(() => readAccount()); }
+  getAccountUsage(): Promise<AccountUsage> { return this.withRefreshOn401(() => readAccountUsage()); }
+  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
+    return this.withRefreshOn401(() => startLive(strategyId, request));
+  }
+  getLive(strategyId: string): Promise<LiveRun> { return this.withRefreshOn401(() => getLive(strategyId)); }
+  stopLive(strategyId: string): Promise<LiveRun> { return this.withRefreshOn401(() => stopLive(strategyId)); }
+  listLive(query?: { cursor?: string; limit?: number }): Promise<LiveListResponse> {
+    return this.withRefreshOn401(() => listLive(query));
+  }
+  listPublicLive(query?: { cursor?: string; limit?: number }): Promise<PublicLiveListResponse> {
+    return this.withRefreshOn401(() => listPublicLive(query));
+  }
+  getLiveRunPaper(runId: string): Promise<LivePaper> {
+    return this.withRefreshOn401(() => getLiveRunPaper(runId));
+  }
+  getLiveRunPaperEquity(runId: string, query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number }): Promise<LivePaperEquityPage> {
+    return this.withRefreshOn401(() => getLiveRunPaperEquity(runId, query));
+  }
+  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityPage): Promise<LivePaperEquityPage | undefined> {
+    return this.withRefreshOn401(() => getNextLiveRunPaperEquity(runId, page));
+  }
+  updateLive(runId: string, request: UpdateLiveRequest): Promise<LiveRunCompact> {
+    return this.withRefreshOn401(() => updateLive(runId, request));
+  }
+  updateLiveParams(runId: string, request: UpdateLiveParamsRequest): Promise<LiveParamsUpdateResult> {
+    return this.withRefreshOn401(() => updateLiveParams(runId, request));
+  }
+  getLiveSignals(runId: string, query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number; type?: LiveSignal['type'] }): Promise<LiveSignalPage> {
+    return this.withRefreshOn401(() => getLiveSignals(runId, query));
+  }
+  getNextLiveSignals(runId: string, page: LiveSignalPage): Promise<LiveSignalPage | undefined> {
+    return this.withRefreshOn401(() => getNextLiveSignals(runId, page));
+  }
+  connectLive(runId: string, options: LiveConnectionOptions): Promise<LiveConnection> {
+    return this.withRefreshOn401(() => LiveConnection.connect(runId, options, () => this.withRefreshOn401(async () => {
+      const { data, error, response } = await mintLiveConnectionToken();
+      if (error || !data) throw new QTSAuthError(`Live token request failed: HTTP ${response?.status ?? 'unknown'}`, error);
+      return data.token;
+    })));
   }
 
   // ---- Workflow surface (mirrors QTSurfer) ----
@@ -397,7 +473,7 @@ export async function authenticate(
     );
   }
   const session = new AuthenticatedClient(resolved, opts);
-  await session.ensureToken();
+  await session.applyConfig();
   return session;
 }
 

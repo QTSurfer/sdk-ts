@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against API spec **0.126.1**. The SDK provides a task-oriented surface for all 41 REST
+Measured against API spec **0.127.0**. The SDK provides a task-oriented surface for all 44 REST
 operations. Its managed live connection obtains the connection token internally rather than
 exposing it as a credential callers can mishandle.
 
@@ -13,7 +13,7 @@ exposing it as a credential callers can mishandle.
 | Backtesting | `executeBacktest`, `getBacktestResult`, cancellation and progress options | Compile, prepare, execute, retries, and polling form one workflow. |
 | Sweeps | `sweep`; `Sweep.result`, `getResults`, `getSensitivity`, `getEquityCurve`, `cancel` | The handle owns accepted-run identifiers and lifecycle. |
 | Dataset | `createDataset`, `importDataset`, `getDatasetImport`, `getDatasets`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`, `finalizeDatasetUpload`, `getDatasetUpload` | Presigned upload bytes never use the API token. |
-| Live execution | `startLive`, `getLive`, `stopLive`, `listPublicLive`, `updateLive`, `updateLiveParams`, `getLiveSignals`, `connectLive` | `connectLive` owns token minting, refresh, reconnects, pings, and the WebSocket channel. |
+| Live execution | `startLive`, `getLive`, `stopLive`, `listLive`, `listPublicLive`, `updateLive`, `updateLiveParams`, `getLiveSignals`, `getLiveRunPaper`, `getLiveRunPaperEquity`, `connectLive` | Paper simulation is opt-in; the TypeScript SDK manages Centrifugo streaming. Other language SDKs currently provide REST only. |
 
 The SDK deliberately keeps `prepare` and raw `execute` calls internal to high-level workflows:
 their temporary ids and lifecycle are not useful application state, and preparation is idempotent.

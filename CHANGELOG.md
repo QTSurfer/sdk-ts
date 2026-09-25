@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.18.0
+
+### Minor Changes
+
+- Expose authenticated `getAccount`, `getAccountUsage`, and live-run methods; add `listLive`, paper account/equity reads with filter-preserving pagination, and `type` filtering for retained signals. Paper mode lets callers inspect simulated balances and positions without placing exchange orders. Default authentication now targets `https://api.qtsurfer.net/v1` and configures requests immediately; update to the OpenAPI 0.127.0 client.
+
 ## 0.17.0
 
 ### Minor Changes
