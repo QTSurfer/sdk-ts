@@ -28,8 +28,14 @@ connection.disconnect();
 await qts.stopLive(strategyId);
 ```
 
-Start the run with `relay: true`; signals are emitted only after it reaches the
-`live` stage. A reconnect does not replay missed signals, so use
+Every new run starts in the `SANDBOX` stage. The owner can inspect that run with `getLive()` or
+`listLive()` even while it is in sandbox, regardless of its requested visibility. A public run appears
+in `listPublicLive()` only after promotion to `LIVE` and while it is running; public visibility alone
+does not expose a sandbox trial. Set `relay: true` to receive WebSocket signals from the run's first
+signal, including during `SANDBOX`; only the owner can subscribe during that trial. The same
+subscription continues after promotion; the transition can be quiet for several minutes, then
+signals produced meanwhile arrive in order. Retained signal history is readable in either stage,
+whether or not relay was enabled. A reconnect does not replay missed signals, so use
 `QTSurfer.getLiveSignals()` to read the retained history. It returns a
 `LiveSignalPage` containing oldest-first `signals`, an optional
 `_links.next.href` continuation, and the earliest available timestamp when
@@ -54,6 +60,8 @@ Use `getLive(strategyId)` to inspect the current run, `listLive({ cursor, limit 
 own runs, and `listPublicLive({ cursor, limit })` for public runs. Omit `cursor` for the first
 page; follow `getNextLiveSignals(runId, page)` for signal pagination. The signal query accepts
 `instrument`, `sinceMs`, `limit`, `cursor`, and `type` (for example `{ type: 'paper' }`).
+`getLive()` also returns the last known run after it stops; its optional `reason` explains a reported
+stop or failure without exposing a stack trace or internal message.
 
 ```ts
 const ownRuns = await qts.listLive({ limit: 50 });
@@ -68,6 +76,25 @@ updates strategy parameters over REST.
 await qts.updateLive(runId, { visibility: 'public' });
 await qts.updateLiveParams(runId, { params: { emaFastPeriod: '12' } });
 ```
+
+Send a one-time command to every execution behind an owned running run with `sendLiveCommand()`. The
+strategy must implement the engine's `CommandRequestHandler`; values in `properties` become top-level
+entries on its `CommandRequest` (they are not strategy parameters). `202` means accepted for delivery
+at `effectiveAtMs`, not that the handler has completed. Commands are transient and are not replayed
+after an execution restart; use `updateLiveParams()` for values that must persist.
+
+```ts
+const accepted = await qts.sendLiveCommand(runId, {
+  command: 'flatten',
+  properties: { instrument: 'BTC/USDT', reason: 'risk limit' },
+});
+console.log(accepted.commandId, new Date(accepted.effectiveAtMs));
+```
+
+The request body is limited to 2 KiB. A `409` means the run is not running or its compiled strategy
+does not support commands. A `503` guarantees the command was not sent, so that response is safe to
+retry; a timeout has an unknown outcome, and retrying can deliver a second command because commands
+have no idempotency key. All request failures are `QTSError`s with the HTTP code on `status`.
 
 Paper trading is opt-in and simulated; it never sends orders to an exchange. Account snapshots and
 equity history are read through these methods. Equity accepts optional `currency`, `sinceMs`,

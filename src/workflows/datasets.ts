@@ -36,8 +36,9 @@ export interface CreateDatasetRequest {
   instrument: Instrument;
 }
 
-export async function listDatasets(): Promise<Dataset[]> {
-  const { data, error, response } = await apiListDatasets();
+/** List owned datasets; opt into soft-deleted entries with `includeDeleted: true`. */
+export async function listDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+  const { data, error, response } = await apiListDatasets({ query: options });
   if (error) throw requestFailed('datasets call', error, response?.status);
   if (!data) throw new QTSError('Empty datasets response');
   return data.datasets;

@@ -198,7 +198,16 @@ describe('QTSurfer.listStrategies', () => {
     const qts = await client();
 
     await expect(qts.getStrategies()).resolves.toEqual(strategies);
-    expect(apiListStrategies).toHaveBeenCalledWith();
+    expect(apiListStrategies).toHaveBeenCalledWith({ query: undefined });
+  });
+
+  it('includes deleted strategies when requested', async () => {
+    const strategies = [{ strategyId: SID, deletedAt: '2026-09-01T12:00:00Z' }];
+    apiListStrategies.mockResolvedValue(ok({ strategies }));
+    const qts = await client();
+
+    await expect(qts.getStrategies({ includeDeleted: true })).resolves.toEqual(strategies);
+    expect(apiListStrategies).toHaveBeenCalledWith({ query: { includeDeleted: true } });
   });
 
   it('returns an empty array rather than throwing when there are none', async () => {

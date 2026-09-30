@@ -59,6 +59,12 @@ differential decoding, metadata, and the meaning of equity.
 the leaderboard; `handle.getResults({ order: 'natural' })` rereads every available row without rerunning;
 `handle.getSensitivity()` provides marginals and heatmaps.
 
+The default `grid` sampler runs the Cartesian product of all parameter axes. Read
+`(await qts.getAccount()).maxSweepCartesian` before submitting a large grid: a grid over that account
+limit is rejected. For bounded sampling, choose `random` or `lhs` and set `samples`; those samplers
+run the requested sample count rather than the full product. Account limits are described in
+[account.md](account.md).
+
 Plateau ranking favors stable parameter neighbourhoods over isolated objective spikes. Walk-forward
 changes the sweep into per-fold optimize-then-score validation, so its rows represent folds rather
 than grid positions. `AbortSignal` requests cancellation while preserving completed rows.

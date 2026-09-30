@@ -1,5 +1,35 @@
 # @qtsurfer/sdk
 
+## 0.19.0
+
+### Minor Changes
+
+#### Send live strategy commands
+
+Call `qts.sendLiveCommand(runId, { command, properties? })` to deliver a one-time event to every
+execution behind an owned running strategy, without restarting it. The strategy must implement
+`CommandRequestHandler`; `properties` becomes top-level command data for the handler. The returned
+`commandId` and `effectiveAtMs` confirm acceptance for delivery, not completion. Commands are
+transient, have no idempotency key, and are not replayed after a restart; use `updateLiveParams()`
+for persistent values. A `503` means the command was not sent and can be retried; after a timeout,
+check application state before retrying to avoid issuing it twice.
+
+```ts
+const accepted = await qts.sendLiveCommand(runId, {
+  command: 'flatten',
+  properties: { instrument: 'BTC/USDT' },
+});
+console.log(accepted.commandId, accepted.effectiveAtMs);
+```
+
+#### Recover resource catalogs and plan sweeps
+
+Pass `{ includeDeleted: true }` to `qts.getStrategies()` or `qts.getDatasets()` to reconcile
+soft-deleted entries; each includes `deletedAt`, but listing does not restore it. `qts.getAccount()`
+now exposes `maxSweepCartesian`, the full-grid combination limit. Use the `random` or `lhs` sampler
+with an explicit sample count when a grid exceeds that limit. The generated client targets OpenAPI
+0.128.14.
+
 ## 0.18.0
 
 ### Minor Changes

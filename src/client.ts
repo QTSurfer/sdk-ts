@@ -67,15 +67,18 @@ import {
   listLive,
   listPublicLive,
   startLive,
+  sendLiveCommand,
   stopLive,
   updateLive,
   updateLiveParams,
   type LiveConnectionOptions,
+  type LiveCommandRequest,
 } from './live';
 import { getAccount, getAccountUsage } from './account';
 import type { Account, AccountUsage } from '@qtsurfer/api-client';
 import type {
   LiveParamsUpdateResult,
+  LiveCommandResult,
   LiveRun,
   LiveRunCompact,
   LiveSignal,
@@ -204,6 +207,10 @@ export class QTSurfer {
 
   updateLiveParams(runId: string, request: UpdateLiveParamsRequest): Promise<LiveParamsUpdateResult> {
     return updateLiveParams(runId, request);
+  }
+
+  sendLiveCommand(runId: string, request: LiveCommandRequest): Promise<LiveCommandResult> {
+    return sendLiveCommand(runId, request);
   }
 
   getLiveSignals(
@@ -336,14 +343,14 @@ export class QTSurfer {
     return compileStrategy(source);
   }
 
-  /** List datasets owned by the authenticated caller. */
-  getDatasets(): Promise<Dataset[]> {
-    return listDatasets();
+  /** List owned datasets; set `includeDeleted: true` to include deleted entries with `deletedAt`. */
+  getDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+    return listDatasets(options);
   }
 
   /** @deprecated Use {@link QTSurfer.getDatasets}. */
-  listDatasets(): Promise<Dataset[]> {
-    return this.getDatasets();
+  listDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+    return this.getDatasets(options);
   }
 
   /** Create a dataset and return the one-time presigned upload session. */
@@ -447,21 +454,22 @@ export class QTSurfer {
   }
 
   /**
-   * List every strategy you have registered and not deleted, most recently
-   * compiled first. Never `404`s — an empty array means you have none.
+   * List your strategies, most recently compiled first. By default deleted
+   * strategies are excluded; set `includeDeleted: true` to include them with
+   * their `deletedAt`. Never `404`s — an empty array means you have none.
    * Each entry deliberately omits `validation`; check a specific strategy's
    * verdict with {@link QTSurfer.getStrategy}. See {@link StrategySummary}.
    *
    * @throws QTSError on any non-2xx response, with the HTTP status on
    * `status`.
    */
-  getStrategies(): Promise<StrategySummary[]> {
-    return listStrategies();
+  getStrategies(options?: { includeDeleted?: boolean }): Promise<StrategySummary[]> {
+    return listStrategies(options);
   }
 
   /** @deprecated Use {@link QTSurfer.getStrategies}. */
-  listStrategies(): Promise<StrategySummary[]> {
-    return this.getStrategies();
+  listStrategies(options?: { includeDeleted?: boolean }): Promise<StrategySummary[]> {
+    return this.getStrategies(options);
   }
 
   /**

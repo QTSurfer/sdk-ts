@@ -27,9 +27,16 @@ passed bounded check is a useful floor, not a trading-performance guarantee.
 
 ```ts
 const mine = await qts.getStrategies();
+const catalogIncludingDeleted = await qts.getStrategies({ includeDeleted: true });
+const removedAt = catalogIncludingDeleted.find((strategy) => strategy.deletedAt);
+console.log(removedAt?.strategyId, removedAt?.deletedAt);
 const registeredSource = await qts.getStrategyCode(compiled.strategyId);
 await qts.deleteStrategy(compiled.strategyId);
 ```
+
+`getStrategies()` excludes soft-deleted strategies by default. Use `{ includeDeleted: true }` when
+reconciling a local catalog; deleted entries carry `deletedAt`. Listing them does not restore them,
+and a deleted strategy cannot be used for a new run.
 
 For indicators, `emitBuy`/`emitSell`, information signals, order configuration, and chart metadata,
 see the API's [Coding Java strategies](https://qtsurfer.github.io/docs/strategy_coding.html) guide

@@ -74,10 +74,12 @@ import {
   listLive,
   listPublicLive,
   startLive,
+  sendLiveCommand,
   stopLive,
   updateLive,
   updateLiveParams,
   type LiveConnectionOptions,
+  type LiveCommandRequest,
 } from '../live';
 import type {
   Account,
@@ -86,6 +88,7 @@ import type {
   LivePaper,
   LivePaperEquityPage,
   LiveParamsUpdateResult,
+  LiveCommandResult,
   LiveRun,
   LiveRunCompact,
   LiveSignalPage,
@@ -240,6 +243,9 @@ export class AuthenticatedClient {
   updateLiveParams(runId: string, request: UpdateLiveParamsRequest): Promise<LiveParamsUpdateResult> {
     return this.withRefreshOn401(() => updateLiveParams(runId, request));
   }
+  sendLiveCommand(runId: string, request: LiveCommandRequest): Promise<LiveCommandResult> {
+    return this.withRefreshOn401(() => sendLiveCommand(runId, request));
+  }
   getLiveSignals(runId: string, query?: { cursor?: string; instrument?: string; limit?: number; sinceMs?: number; type?: LiveSignal['type'] }): Promise<LiveSignalPage> {
     return this.withRefreshOn401(() => getLiveSignals(runId, query));
   }
@@ -341,14 +347,14 @@ export class AuthenticatedClient {
     return this.withRefreshOn401(() => compileStrategy(source));
   }
 
-  /** List datasets owned by the authenticated caller. Refreshes once on 401. */
-  getDatasets(): Promise<Dataset[]> {
-    return this.withRefreshOn401(() => listDatasets());
+  /** List owned datasets; `includeDeleted: true` includes deleted rows with `deletedAt`. Refreshes once on 401. */
+  getDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+    return this.withRefreshOn401(() => listDatasets(options));
   }
 
   /** @deprecated Use {@link AuthenticatedClient.getDatasets}. */
-  listDatasets(): Promise<Dataset[]> {
-    return this.getDatasets();
+  listDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+    return this.getDatasets(options);
   }
 
   /** Create a dataset and return its one-time presigned upload session. */
@@ -418,17 +424,18 @@ export class AuthenticatedClient {
   }
 
   /**
-   * List every strategy you have registered and not deleted, most recently
-   * compiled first. Refreshes the token once on `401` before retrying. See
+   * List strategies, most recently compiled first. Pass `includeDeleted: true`
+   * to include deleted entries with `deletedAt`. Refreshes the token once on
+   * `401` before retrying. See
    * {@link QTSurfer.getStrategies}.
    */
-  getStrategies(): Promise<StrategySummary[]> {
-    return this.withRefreshOn401(() => listStrategies());
+  getStrategies(options?: { includeDeleted?: boolean }): Promise<StrategySummary[]> {
+    return this.withRefreshOn401(() => listStrategies(options));
   }
 
   /** @deprecated Use {@link AuthenticatedClient.getStrategies}. */
-  listStrategies(): Promise<StrategySummary[]> {
-    return this.getStrategies();
+  listStrategies(options?: { includeDeleted?: boolean }): Promise<StrategySummary[]> {
+    return this.getStrategies(options);
   }
 
   /**

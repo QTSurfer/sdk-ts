@@ -57,6 +57,7 @@ describe('dataset workflow', () => {
     const datasets = await import('../../src/workflows/datasets');
 
     await expect(datasets.listDatasets()).resolves.toEqual([{ datasetId: 'ds_1', name: 'mine' }]);
+    expect(apiListDatasets).toHaveBeenCalledWith({ query: undefined });
     await expect(datasets.createDataset({ name: 'mine', instrument: 'BTC/USDT' as never })).resolves.toEqual(upload);
     await expect(datasets.getDataset('ds_1')).resolves.toMatchObject({ datasetId: 'ds_1' });
     await expect(datasets.finalizeDatasetUpload('ds_1', 'up_1')).resolves.toEqual({ jobId: 'job_1' });
@@ -68,6 +69,15 @@ describe('dataset workflow', () => {
     expect(apiCreateDataset).toHaveBeenCalledWith({ body: { name: 'mine', instrument: 'BTC/USDT' } });
     expect(apiFinalizeDatasetUpload).toHaveBeenCalledWith({ path: { datasetId: 'ds_1', uploadId: 'up_1' } });
     expect(apiOpenDatasetUpload).toHaveBeenCalledWith({ path: { datasetId: 'ds_1' } });
+  });
+
+  it('includes deleted datasets when requested', async () => {
+    const deleted = [{ datasetId: 'ds_1', name: 'mine', deletedAt: '2026-09-01T12:00:00Z' }];
+    apiListDatasets.mockResolvedValue(ok({ datasets: deleted }));
+    const datasets = await import('../../src/workflows/datasets');
+
+    await expect(datasets.listDatasets({ includeDeleted: true })).resolves.toEqual(deleted);
+    expect(apiListDatasets).toHaveBeenCalledWith({ query: { includeDeleted: true } });
   });
 
   it('puts raw bytes to the presigned URL without API authorization', async () => {

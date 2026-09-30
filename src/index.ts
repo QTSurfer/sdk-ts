@@ -12,6 +12,7 @@ export {
   LiveConnection,
   LiveSignalCursorExpiredError,
   getLive,
+  sendLiveCommand,
   getLiveRunPaper,
   getLiveRunPaperEquity,
   getNextLiveRunPaperEquity,
@@ -24,9 +25,11 @@ export {
   updateLive,
   updateLiveParams,
   type LiveConnectionOptions,
+  type LiveCommandRequest,
 } from './live';
 export type {
   LiveParamsUpdateResult,
+  LiveCommandResult,
   LiveRun,
   LiveRunCompact,
   LivePaper,

@@ -17,7 +17,15 @@ await qts.uploadDatasetFile(created, csvText);
 await qts.finalizeDatasetUpload(created.datasetId, created.uploadId);
 
 const state = await qts.getDatasetUpload(created.datasetId, created.uploadId);
+const activeDatasets = await qts.getDatasets();
+const allDatasets = await qts.getDatasets({ includeDeleted: true });
+const deleted = allDatasets.find((dataset) => dataset.deletedAt);
+console.log(activeDatasets.length, deleted?.datasetId, deleted?.deletedAt);
 ```
+
+`getDatasets()` excludes soft-deleted datasets by default. Use `{ includeDeleted: true }` when
+reconciling a local catalog; deleted entries carry `deletedAt`. Listing them does not restore them
+or make them available to new backtests.
 
 Poll until the upload state is ready or failed. Only a ready version is usable. The returned version
 contains the discovered range, cadence, row count, and gap information. The CSV format and validation

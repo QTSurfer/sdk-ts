@@ -4,6 +4,7 @@ import {
   getLiveRunPaper as apiGetLiveRunPaper,
   getLiveRunPaperEquity as apiGetLiveRunPaperEquity,
   getLiveRunSignals as apiGetLiveRunSignals,
+  sendLiveCommand as apiSendLiveCommand,
   listPublicLive as apiListPublicLive,
   listLive as apiListLive,
   mintLiveConnectionToken,
@@ -13,6 +14,7 @@ import {
   updateLiveParams as apiUpdateLiveParams,
   type LiveRun,
   type LiveRunCompact,
+  type LiveCommandResult,
   type LiveParamsUpdateResult,
   type LiveSignal,
   type LiveSignalPage,
@@ -42,6 +44,12 @@ export interface LiveConnectionOptions {
 
 /** Thrown when a recorded-signal cursor fell behind the server's retention window. */
 export class LiveSignalCursorExpiredError extends QTSError {}
+
+/** Command text and optional strategy-defined values delivered to each execution. */
+export interface LiveCommandRequest {
+  command: string;
+  properties?: Record<string, unknown>;
+}
 
 /** Start the compiled strategy's single live run. */
 export async function startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
@@ -136,6 +144,22 @@ export async function updateLiveParams(
   const { data, error, response } = await apiUpdateLiveParams({ path: { runId }, body: request });
   if (error) throw requestFailed('update live parameters call', error, response?.status);
   if (!data) throw new QTSError('Empty update-live-parameters response');
+  return data;
+}
+
+/**
+ * Deliver a transient command to every execution behind an owned live run.
+ * A successful response means accepted for delivery, not handled by the
+ * strategy. Commands are not persisted or idempotent; use parameters for
+ * values that must survive execution restarts.
+ */
+export async function sendLiveCommand(
+  runId: string,
+  request: LiveCommandRequest,
+): Promise<LiveCommandResult> {
+  const { data, error, response } = await apiSendLiveCommand({ path: { runId }, body: request });
+  if (error) throw requestFailed('send live command call', error, response?.status);
+  if (!data) throw new QTSError('Empty send-live-command response');
   return data;
 }
 

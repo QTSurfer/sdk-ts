@@ -394,66 +394,9 @@ open a new session instead of reusing its URL.
 
 ## API coverage
 
-Measured against **API spec 0.111.2**: 29 operations, all 29 reachable from this SDK.
-
-It exists because the generated `@qtsurfer/api-client` tracks the spec automatically and this
-hand-written layer does not, so an operation the platform serves could otherwise have no way in
-without anything failing to compile.
-
-**Maintenance contract.** When the spec gains an operation, it gains a row here. If this layer
-deliberately does not wrap it, the row says why.
-
-There are two ways an operation is reached:
-
-- **Direct** — callable on its own, without running a workflow. The client methods below
-  (`getExchanges`, `getInstruments`, `downloadTickers`, `downloadKlines`, `getDatasets`,
-  `createDataset`, `getDataset`, `deleteDataset`, `openDatasetUpload`, `uploadDatasetFile`,
-  `finalizeDatasetUpload`, `getDatasetUpload`, `compileStrategy`, `validateStrategy`, `getStrategy`,
-  `getStrategies`, `deleteStrategy`, `getStrategyCode`) exist on
-  `QTSurfer` and, identically, on the authenticated
-  session. The remaining direct rows are reached
-  otherwise: `authenticate()` is a top-level export rather than a method on either class; the two
-  `Sweep.*` entries live on the handle `sweep()` hands back and, being handle-scoped, sit outside
-  the session's refresh-on-401 policy; and the two cancels are an option you pass in rather than a
-  call you make.
-- **Via workflow** — reachable only as a stage inside `executeBacktest(...)` or `sweep(...)`, with no
-  standalone method. Deliberate rather than missing: the workflow owns the dataset lifecycle.
-  Prepare, execute and result are addressed by ids the workflow mints and threads through the
-  stages, so exposing a stage on its own would hand the caller a `requestId` to keep alive and pass
-  around correctly, and buy nothing in return — preparing is idempotent, so preparing on every run
-  duplicates no work.
-
-| Operation | How it is reached |
-| --- | --- |
-| `authenticate` | Direct — `authenticate()` |
-| `listExchanges` | Direct — `getExchanges()` |
-| `listInstruments` | Direct — `getInstruments(exchangeId)` |
-| `listSegmentInstruments` | Direct — `getInstruments(exchangeId, segment)` |
-| `downloadTickers` | Direct — `downloadTickers(...)` |
-| `downloadKlines` | Direct — `downloadKlines(...)` |
-| `listStrategies` | Direct — `getStrategies()` |
-| `compileStrategy` | Direct — `compileStrategy(source)`; also used inside `executeBacktest(...)` / `sweep(...)` |
-| `validateStrategy` | Direct — `validateStrategy(strategyId)` |
-| `getStrategy` | Direct — `getStrategy(strategyId)` |
-| `deleteStrategy` | Direct — `deleteStrategy(strategyId)` |
-| `getStrategyCode` | Direct — `getStrategyCode(strategyId)` |
-| `prepareBacktest` | Via workflow |
-| `getPrepareStatus` | Via workflow |
-| `executeBacktest` | Via workflow — `executeBacktest(...)` |
-| `getBacktestResult` | Via workflow |
-| `cancelBacktest` | Direct — the `signal` (`AbortSignal`) option on `BacktestOptions` |
-| `executeSweep` | Via workflow — `sweep(...)` |
-| `getSweepResult` | Via workflow (the background poll behind `Sweep.result`) and direct — `Sweep.getResults(view?)` re-reads the same sweep under another view |
-| `cancelSweep` | Direct — the `signal` option on `SweepOptions` |
-| `getSweepSensitivity` | Direct — `Sweep.getSensitivity(objective?)` |
-| `getSweepRunEquityCurve` | Direct — `Sweep.getEquityCurve(runIx, options?)` |
-| `listDatasets` | Direct — `getDatasets()` |
-| `createDataset` | Direct — `createDataset()` then `uploadDatasetFile()` / `finalizeDatasetUpload()` |
-| `deleteDataset` | Direct — `deleteDataset()` |
-| `getDataset` | Direct — `getDataset()` |
-| `openDatasetUpload` | Direct — `openDatasetUpload()` then `uploadDatasetFile()` |
-| `finalizeDatasetUpload` | Direct — `finalizeDatasetUpload()` |
-| `getDatasetUpload` | Direct — `getDatasetUpload()` |
+Measured against API spec **0.128.14**: all 45 REST operations are represented. The operation-by-
+operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
+operations in [API coverage](docs/api-coverage.md).
 
 ## Error hierarchy
 

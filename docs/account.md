@@ -15,7 +15,13 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 ```ts
 const account = await qts.getAccount();
 console.log(`${account.tier} allows ${account.maxDatasets} datasets`);
+console.log(`full-grid sweep limit: ${account.maxSweepCartesian} combinations`);
 ```
+
+`maxSweepCartesian` is the maximum product of axis sizes accepted by the `grid` sampler. A larger
+grid is rejected; use `random` or `lhs` with an explicit `samples` count to evaluate a bounded subset.
+Those samplers are not subject to the Cartesian-grid limit. See [backtesting.md](backtesting.md) for
+sweep options.
 
 ## Read current usage
 

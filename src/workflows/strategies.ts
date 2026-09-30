@@ -161,8 +161,9 @@ export async function getStrategy(strategyId: string): Promise<StrategyState> {
 export type StrategySummary = ApiStrategySummary;
 
 /**
- * List every strategy you have registered and not deleted, most recently
- * compiled first.
+ * List your registered strategies, most recently compiled first. By default,
+ * deleted strategies are excluded; set `includeDeleted: true` to include them
+ * with their `deletedAt` timestamp.
  *
  * **Never `404`.** An empty array means you have none registered — not an
  * error. Each entry omits `validation` on purpose (see {@link
@@ -171,8 +172,8 @@ export type StrategySummary = ApiStrategySummary;
  *
  * @throws QTSError on any non-2xx response, with the HTTP status on `status`.
  */
-export async function listStrategies(): Promise<StrategySummary[]> {
-  const { data, error, response } = await apiListStrategies();
+export async function listStrategies(options?: { includeDeleted?: boolean }): Promise<StrategySummary[]> {
+  const { data, error, response } = await apiListStrategies({ query: options });
   if (error) throw requestFailed('strategies list', error, response?.status);
   if (!data) throw new QTSError('Empty strategies response');
   return data.strategies;
