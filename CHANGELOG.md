@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.20.0
+
+### Minor Changes
+
+- Add `getLiveRun` for timestamped live-run snapshots and optional stats, plus `rotateLiveStream` and `revokeLiveStream` for secret plain-WebSocket URLs. `startLive` and `getLive` now expose the optional stream URL.
+
 ## 0.19.0
 
 ### Minor Changes

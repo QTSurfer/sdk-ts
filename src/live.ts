@@ -1,6 +1,7 @@
 import { Centrifuge } from 'centrifuge';
 import {
   getLive as apiGetLive,
+  getLiveRun as apiGetLiveRun,
   getLiveRunPaper as apiGetLiveRunPaper,
   getLiveRunPaperEquity as apiGetLiveRunPaperEquity,
   getLiveRunSignals as apiGetLiveRunSignals,
@@ -12,7 +13,11 @@ import {
   stopLive as apiStopLive,
   updateLive as apiUpdateLive,
   updateLiveParams as apiUpdateLiveParams,
+  rotateLiveStream as apiRotateLiveStream,
+  revokeLiveStream as apiRevokeLiveStream,
   type LiveRun,
+  type LiveRunDetail,
+  type LiveRunWithStream,
   type LiveRunCompact,
   type LiveCommandResult,
   type LiveParamsUpdateResult,
@@ -20,6 +25,8 @@ import {
   type LiveSignalPage,
   type LivePaper,
   type LivePaperEquityPage,
+  type LiveStreamRevoked,
+  type LiveStreamUrl,
   type LiveListResponse,
   type PublicLiveListResponse,
   type StartLiveRequest,
@@ -52,7 +59,7 @@ export interface LiveCommandRequest {
 }
 
 /** Start the compiled strategy's single live run. */
-export async function startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
+export async function startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRunWithStream> {
   const { data, error, response } = await apiStartLive({ path: { strategyId }, body: request });
   if (error) throw requestFailed('start live call', error, response?.status);
   if (!data) throw new QTSError('Empty start-live response');
@@ -60,10 +67,18 @@ export async function startLive(strategyId: string, request: StartLiveRequest): 
 }
 
 /** Read a strategy's current live run. */
-export async function getLive(strategyId: string): Promise<LiveRun> {
+export async function getLive(strategyId: string): Promise<LiveRunWithStream> {
   const { data, error, response } = await apiGetLive({ path: { strategyId } });
   if (error) throw requestFailed('get live call', error, response?.status);
   if (!data) throw new QTSError('Empty get-live response');
+  return data;
+}
+
+/** Read one of your live runs by its id, including its last-change time and latest counters. */
+export async function getLiveRun(runId: string): Promise<LiveRunDetail> {
+  const { data, error, response } = await apiGetLiveRun({ path: { runId } });
+  if (error) throw requestFailed('get live run call', error, response?.status);
+  if (!data) throw new QTSError('Empty get-live-run response');
   return data;
 }
 
@@ -133,6 +148,22 @@ export async function updateLive(runId: string, request: UpdateLiveRequest): Pro
   const { data, error, response } = await apiUpdateLive({ path: { runId }, body: request });
   if (error) throw requestFailed('update live call', error, response?.status);
   if (!data) throw new QTSError('Empty update-live response');
+  return data;
+}
+
+/** Rotate a running run's stream URL and retire the previous URL. */
+export async function rotateLiveStream(runId: string): Promise<LiveStreamUrl> {
+  const { data, error, response } = await apiRotateLiveStream({ path: { runId } });
+  if (error) throw requestFailed('rotate live stream call', error, response?.status);
+  if (!data) throw new QTSError('Empty rotate-live-stream response');
+  return data;
+}
+
+/** Revoke a run's stream URL permanently; this does not stop the run. */
+export async function revokeLiveStream(runId: string): Promise<LiveStreamRevoked> {
+  const { data, error, response } = await apiRevokeLiveStream({ path: { runId } });
+  if (error) throw requestFailed('revoke live stream call', error, response?.status);
+  if (!data) throw new QTSError('Empty revoke-live-stream response');
   return data;
 }
 

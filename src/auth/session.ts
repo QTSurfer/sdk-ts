@@ -66,6 +66,7 @@ import { getAccount as readAccount, getAccountUsage as readAccountUsage } from '
 import {
   LiveConnection,
   getLive,
+  getLiveRun,
   getLiveRunPaper,
   getLiveRunPaperEquity,
   getNextLiveRunPaperEquity,
@@ -74,6 +75,8 @@ import {
   listLive,
   listPublicLive,
   startLive,
+  rotateLiveStream,
+  revokeLiveStream,
   sendLiveCommand,
   stopLive,
   updateLive,
@@ -90,8 +93,12 @@ import type {
   LiveParamsUpdateResult,
   LiveCommandResult,
   LiveRun,
+  LiveRunDetail,
+  LiveRunWithStream,
   LiveRunCompact,
   LiveSignalPage,
+  LiveStreamRevoked,
+  LiveStreamUrl,
   LiveSignal,
   PublicLiveListResponse,
   StartLiveRequest,
@@ -217,10 +224,17 @@ export class AuthenticatedClient {
 
   getAccount(): Promise<Account> { return this.withRefreshOn401(() => readAccount()); }
   getAccountUsage(): Promise<AccountUsage> { return this.withRefreshOn401(() => readAccountUsage()); }
-  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
+  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRunWithStream> {
     return this.withRefreshOn401(() => startLive(strategyId, request));
   }
-  getLive(strategyId: string): Promise<LiveRun> { return this.withRefreshOn401(() => getLive(strategyId)); }
+  getLive(strategyId: string): Promise<LiveRunWithStream> { return this.withRefreshOn401(() => getLive(strategyId)); }
+  getLiveRun(runId: string): Promise<LiveRunDetail> { return this.withRefreshOn401(() => getLiveRun(runId)); }
+  rotateLiveStream(runId: string): Promise<LiveStreamUrl> {
+    return this.withRefreshOn401(() => rotateLiveStream(runId));
+  }
+  revokeLiveStream(runId: string): Promise<LiveStreamRevoked> {
+    return this.withRefreshOn401(() => revokeLiveStream(runId));
+  }
   stopLive(strategyId: string): Promise<LiveRun> { return this.withRefreshOn401(() => stopLive(strategyId)); }
   listLive(query?: { cursor?: string; limit?: number }): Promise<LiveListResponse> {
     return this.withRefreshOn401(() => listLive(query));

@@ -42,6 +42,12 @@ whether or not relay was enabled. A reconnect does not replay missed signals, so
 retention has discarded older signals. Deduplicate by `signalId` when combining
 REST pages with the WebSocket stream.
 
+To follow one run independently of which run its strategy most recently started, use
+`getLiveRun(runId)`. It returns the run plus `updatedAtMs`, which advances when the run changes, and
+optional `stats`. `stats` is a periodic snapshot, absent until the first one exists; `stale` means
+the platform stopped refreshing counters, while a flat `processed` count alone does not mean a
+problem. A stats refresh does not advance `updatedAtMs`.
+
 ```ts
 const page = await qts.getLiveSignals(runId, { limit: 100 });
 for (const signal of page.signals) {
@@ -56,12 +62,42 @@ When `LiveSignalCursorExpiredError` is thrown, restart without `cursor`. The
 replacement page reports its `availableSinceMs` value, which is the oldest
 retained signal timestamp.
 
-Use `getLive(strategyId)` to inspect the current run, `listLive({ cursor, limit })` to list your
+Use `getLive(strategyId)` to inspect the current run, `getLiveRun(runId)` to re-read a specific run,
+`listLive({ cursor, limit })` to list your
 own runs, and `listPublicLive({ cursor, limit })` for public runs. Omit `cursor` for the first
 page; follow `getNextLiveSignals(runId, page)` for signal pagination. The signal query accepts
 `instrument`, `sinceMs`, `limit`, `cursor`, and `type` (for example `{ type: 'paper' }`).
 `getLive()` also returns the last known run after it stops; its optional `reason` explains a reported
 stop or failure without exposing a stack trace or internal message.
+
+When starting a run, pass `stream: true` to request a plain WebSocket URL. It arrives as
+`streamUrl` from `startLive()` and remains available through `getLive()` while the run is running
+and your plan allows broadcasting. The URL is a secret: anyone who has it can read the run's signal
+frames, so keep it out of logs and shared output. Open it with the WebSocket implementation your
+application already uses; `connectLive()` is a separate Centrifugo connection.
+
+```ts
+const streamedRun = await qts.startLive(strategyId, { name: 'ETH stream', stream: true });
+if (!streamedRun.streamUrl) throw new Error('The run did not return a stream URL');
+
+const socket = new WebSocket(streamedRun.streamUrl);
+socket.addEventListener('message', (event) => {
+  const signal: unknown = JSON.parse(String(event.data));
+  console.log(signal);
+});
+```
+
+`rotateLiveStream(runId)` replaces the URL and retires the old one; connections using it close
+within about 15 seconds. It requires a running run that was started with a stream; a revoked stream
+cannot be restored. `revokeLiveStream(runId)` permanently turns off the URL without stopping the
+run, and is safe to repeat. Failures remain `QTSError`s with their HTTP `status` and server message:
+for example, `409` means the run has no usable stream and `429` means your plan cannot broadcast.
+
+```ts
+const { streamUrl: replacementUrl } = await qts.rotateLiveStream(streamRun.runId);
+const replacementSocket = new WebSocket(replacementUrl);
+await qts.revokeLiveStream(streamRun.runId); // stops this URL; the run itself keeps going
+```
 
 ```ts
 const ownRuns = await qts.listLive({ limit: 50 });

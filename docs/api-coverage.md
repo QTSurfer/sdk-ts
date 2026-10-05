@@ -45,8 +45,11 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `stopLive` | `stopLive(strategyId)`. |
 | `listLive` | `listLive(query?)` lists all runs owned by the caller, including sandbox and stopped runs. |
 | `listPublicLive` | `listPublicLive(query?)` lists only public runs promoted to `LIVE` and still running. |
+| `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs` and optional `stats`. |
 | `updateLive` | `updateLive(runId, request)` changes mutable run metadata. |
 | `updateLiveParams` | `updateLiveParams(runId, request)` or `LiveConnection.updateParams(params)`. |
+| `rotateLiveStream` | `rotateLiveStream(runId)` replaces a run's secret plain-WebSocket URL. |
+| `revokeLiveStream` | `revokeLiveStream(runId)` permanently revokes that URL without stopping the run. |
 | `sendLiveCommand` | `sendLiveCommand(runId, request)` delivers transient strategy commands. |
 | `getLiveRunSignals` | `getLiveSignals(runId, query?)` and `getNextLiveSignals(runId, page)`. |
 | `getLiveRunPaper` | `getLiveRunPaper(runId)` reads simulated accounts and positions. |

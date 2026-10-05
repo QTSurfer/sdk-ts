@@ -59,6 +59,7 @@ import {
 import {
   LiveConnection,
   getLive,
+  getLiveRun,
   getNextLiveSignals,
   getLiveSignals,
   getNextLiveRunPaperEquity,
@@ -67,6 +68,8 @@ import {
   listLive,
   listPublicLive,
   startLive,
+  rotateLiveStream,
+  revokeLiveStream,
   sendLiveCommand,
   stopLive,
   updateLive,
@@ -80,11 +83,15 @@ import type {
   LiveParamsUpdateResult,
   LiveCommandResult,
   LiveRun,
+  LiveRunDetail,
+  LiveRunWithStream,
   LiveRunCompact,
   LiveSignal,
   LiveSignalPage,
   LivePaper,
   LivePaperEquityPage,
+  LiveStreamRevoked,
+  LiveStreamUrl,
   LiveListResponse,
   PublicLiveListResponse,
   StartLiveRequest,
@@ -166,12 +173,24 @@ export class QTSurfer {
     return LiveConnection.connect(runId, { ...options, url: this.liveUrl });
   }
 
-  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRun> {
+  startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRunWithStream> {
     return startLive(strategyId, request);
   }
 
-  getLive(strategyId: string): Promise<LiveRun> {
+  getLive(strategyId: string): Promise<LiveRunWithStream> {
     return getLive(strategyId);
+  }
+
+  getLiveRun(runId: string): Promise<LiveRunDetail> {
+    return getLiveRun(runId);
+  }
+
+  rotateLiveStream(runId: string): Promise<LiveStreamUrl> {
+    return rotateLiveStream(runId);
+  }
+
+  revokeLiveStream(runId: string): Promise<LiveStreamRevoked> {
+    return revokeLiveStream(runId);
   }
 
   listLive(query?: { cursor?: string; limit?: number }): Promise<LiveListResponse> {
