@@ -1,12 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { LiveRunDetail, LiveRunWithStream, StartLiveRequest } from '@qtsurfer/api-client';
 
 const apiSendLiveCommand = vi.fn();
+const apiStartLive = vi.fn();
+const apiGetLive = vi.fn();
 const apiGetLiveRun = vi.fn();
 const apiRotateLiveStream = vi.fn();
 const apiRevokeLiveStream = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   sendLiveCommand: apiSendLiveCommand,
+  startLive: apiStartLive,
+  getLive: apiGetLive,
   getLiveRun: apiGetLiveRun,
   rotateLiveStream: apiRotateLiveStream,
   revokeLiveStream: apiRevokeLiveStream,
@@ -17,9 +22,33 @@ const ok = <T>(data: T, status = 202) => ({ data, error: undefined, response: { 
 describe('live commands', () => {
   beforeEach(() => {
     apiSendLiveCommand.mockReset();
+    apiStartLive.mockReset();
+    apiGetLive.mockReset();
     apiGetLiveRun.mockReset();
     apiRotateLiveStream.mockReset();
     apiRevokeLiveStream.mockReset();
+  });
+
+  it('sets warm-up on start and accepts omitted values on runs that predate the field', async () => {
+    const { startLive, getLive } = await import('../../src/live');
+    expectTypeOf<StartLiveRequest['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<LiveRunWithStream['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<LiveRunDetail['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<StartLiveRequest['sources'][number]['instruments']>().toEqualTypeOf<string[] | undefined>();
+
+    const request = {
+      sources: [{ venueType: 'cx', exchange: 'binance', segment: 'spot', type: 'ticker' }],
+      warmFrom: 0,
+    } satisfies StartLiveRequest;
+    const started = { runId: 'run-1', warmFrom: 0 };
+    apiStartLive.mockResolvedValueOnce(ok(started, 201));
+
+    await expect(startLive('strategy-1', request)).resolves.toEqual(started);
+    expect(apiStartLive).toHaveBeenCalledWith({ path: { strategyId: 'strategy-1' }, body: request });
+
+    const historical = { runId: 'old-run' };
+    apiGetLive.mockResolvedValueOnce(ok(historical, 200));
+    await expect(getLive('strategy-1')).resolves.toEqual(historical);
   });
 
   it('reads a run by id with its freshness and statistics', async () => {

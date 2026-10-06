@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.21.0
+
+### Minor Changes
+
+- Let live-run starts use a strategy's declared instruments when `sources[].instruments` is omitted, and expose the optional, non-null `warmFrom` setting and its effective value on run responses (OpenAPI 0.128.22).
+
 ## 0.20.0
 
 ### Minor Changes

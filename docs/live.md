@@ -8,6 +8,33 @@ import { authenticate } from '@qtsurfer/sdk';
 const qts = await authenticate(); // reads QTSURFER_APIKEY
 ```
 
+## Selecting instruments
+
+When starting a run, you can leave `instruments` out of its source. If the compiled strategy recorded an
+instrument list, the run uses that list; otherwise it reads every instrument offered by the exchange and
+segment. An explicit list is used as sent, and `['*']` requests every instrument. Empty lists and `null`
+are rejected. Instrument symbols are case-insensitive; `*` on either side of `/` matches any base or quote,
+such as `*/USDT` or `BTC/*`.
+
+## Warming up indicators
+
+Set `warmFrom` when starting a run to replay up to 3,600 seconds of market history before its start. It is an
+integer from `0` to `3600`; `0` disables replay. If omitted, the platform chooses the beginning of the current
+15-minute block (0–900 seconds back), so the first bar of a 15-minute window is complete. The effective value is
+returned as `warmFrom` by `startLive()`, `getLive()`, and `getLiveRun()`. It is optional and never `null`: it is
+absent only on historical runs started before this field existed.
+
+```ts
+const run = await qts.startLive(strategyId, {
+  sources: [{ venueType: 'cx', exchange: 'binance', segment: 'spot', type: 'ticker' }],
+  warmFrom: 0, // start with empty indicators and no replay
+});
+console.log(run.warmFrom); // 0
+```
+
+The value is fixed for the lifetime of the run and is not a live parameter. To change it, stop and start the run
+again. Replayed signals describe time before the run started, so they are not sent over the run's channel or stream.
+
 `QTSurfer.connectLive()` opens a managed [Centrifugo](https://centrifugal.dev/) connection for one live
 run. The SDK mints and refreshes its connection token through the configured
 REST client; `centrifuge` handles reconnects and server pings.
