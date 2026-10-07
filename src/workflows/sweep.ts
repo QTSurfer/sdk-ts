@@ -799,6 +799,14 @@ function createHandle(
           const res = await getSweepResult({ path, ...withQuery, signal });
           if (res.error) throw new QTSExecutionError('Sweep result request failed', res.error);
           if (!res.data) throw new QTSExecutionError('Empty sweep result response');
+          // Cancellation is acknowledged before in-flight shards have drained. Keep polling
+          // until pendingShards reaches zero so the resolved leaderboard is complete.
+          if (
+            normalizeStatus(res.data.status) === 'aborted' &&
+            (res.data.progress?.pendingShards ?? 0) > 0
+          ) {
+            return { ...res.data, status: 'RUNNING' as const };
+          }
           return res.data;
         },
         {

@@ -42,13 +42,13 @@ function err(e: unknown, status = 400) {
   return { data: undefined, error: e, response: { status } as Response };
 }
 
-function progress(done: number, total: number, failedShards = 0) {
+function progress(done: number, total: number, failedShards = 0, pendingShards = 0) {
   return {
     done,
     total,
     aborted: 0,
     shardCount: 4,
-    pendingShards: 0,
+    pendingShards,
     failedShards,
     retrying: 0,
     notStarted: 0,
@@ -449,11 +449,12 @@ describe('sweep workflow', () => {
       stopped = true;
       return ok({ status: 'cancelling', sweepId: 'swp-1' });
     });
+    let cancelledReads = 0;
     getSweepResult.mockImplementation(async () =>
       ok(
         stopped
           ? snapshot('CANCELLED', {
-              progress: progress(10, 44),
+              progress: progress(10, 44, 0, cancelledReads++ === 0 ? 2 : 0),
               leaderboardSize: 1,
               leaderboard: [row(2, 1.5)],
             })

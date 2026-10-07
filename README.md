@@ -228,7 +228,8 @@ in the axis count and may be capped, so a short list is not necessarily the whol
 Pass an `AbortSignal`, as with `executeBacktest()`. Unlike `executeBacktest()`, **awaiting a cancelled sweep
 resolves rather than rejecting**: cancellation is requested between parameter vectors and the rows
 already completed stay readable, so the SDK keeps polling until the platform reports the sweep
-`CANCELLED` and then hands back the partial leaderboard. Read `result.status` to tell
+`CANCELLED` and `result.progress.pendingShards` reaches `0`, then hands back the complete
+leaderboard. Read `result.status` to tell
 `COMPLETED`, `PARTIAL` and `CANCELLED` apart. Aborting *before* the sweep is accepted rejects the
 `sweep()` call itself — there is no sweep yet, and so no rows to keep.
 

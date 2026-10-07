@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.21.1
+
+### Patch Changes
+
+- Cancelled sweeps now remain pending until `progress.pendingShards` reaches zero, so the resolved leaderboard includes runs that were already in flight when cancellation was accepted.
+
 ## 0.21.0
 
 ### Minor Changes
@@ -28,8 +34,8 @@ check application state before retrying to avoid issuing it twice.
 
 ```ts
 const accepted = await qts.sendLiveCommand(runId, {
-  command: 'flatten',
-  properties: { instrument: 'BTC/USDT' },
+  command: "flatten",
+  properties: { instrument: "BTC/USDT" },
 });
 console.log(accepted.commandId, accepted.effectiveAtMs);
 ```
