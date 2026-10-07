@@ -1,4 +1,4 @@
-import { Centrifuge } from 'centrifuge';
+import { Centrifuge, type Subscription } from 'centrifuge';
 import {
   getLive as apiGetLive,
   getLiveRun as apiGetLiveRun,
@@ -43,8 +43,8 @@ export const DEFAULT_LIVE_URL = 'wss://rt.qtsurfer.net/connection/websocket';
 export interface LiveConnectionOptions {
   /** Override the Centrifugo endpoint, for example in an integration test. */
   url?: string;
-  /** Called for every signal published while the subscription is active. */
-  onSignal: (signal: LiveSignal) => void;
+  /** Called for every signal published while subscribed; offset is present when history is enabled. */
+  onSignal: (signal: LiveSignal, offset?: number) => void;
   /** Called when Centrifugo reports an asynchronous transport error. */
   onError?: (error: unknown) => void;
 }
@@ -56,6 +56,31 @@ export class LiveSignalCursorExpiredError extends QTSError {}
 export interface LiveCommandRequest {
   command: string;
   properties?: Record<string, unknown>;
+}
+
+/** Position within the retained WebSocket signal stream. */
+export interface LiveSignalHistoryPosition {
+  offset: number;
+  epoch: string;
+}
+
+/** One retained signal with the offset it carried when published. */
+export interface LiveSignalHistoryEntry {
+  data: LiveSignal;
+  offset: number;
+}
+
+/** Retained sandbox signals and the channel's current stream position. */
+export interface LiveSignalHistory extends LiveSignalHistoryPosition {
+  publications: LiveSignalHistoryEntry[];
+}
+
+/** Options for reading the channel's retained sandbox signals. */
+export interface LiveSignalHistoryOptions {
+  /** Defaults to 300, the channel's maximum retention; zero reads only the position. */
+  limit?: number;
+  /** Return only signals after this position. */
+  since?: LiveSignalHistoryPosition;
 }
 
 /** Start the compiled strategy's single live run. */
@@ -246,6 +271,7 @@ export class LiveConnection {
   private constructor(
     private readonly centrifuge: Centrifuge,
     private readonly runId: string,
+    private readonly subscription: Subscription,
   ) {}
 
   /** Connect and subscribe to `sig:<runId>`. */
@@ -263,7 +289,7 @@ export class LiveConnection {
 
     const subscription = centrifuge.newSubscription(`sig:${runId}`);
     subscription.on('publication', (context) => {
-      options.onSignal(context.data as LiveSignal);
+      options.onSignal(context.data as LiveSignal, context.offset);
     });
     subscription.on('unsubscribed', (context) => options.onError?.(context));
 
@@ -271,7 +297,28 @@ export class LiveConnection {
     await centrifuge.ready();
     subscription.subscribe();
     await subscription.ready();
-    return new LiveConnection(centrifuge, runId);
+    return new LiveConnection(centrifuge, runId, subscription);
+  }
+
+  /**
+   * Read the signals retained on this subscribed channel, oldest first.
+   * Only sandbox signals are held (up to 300, until five minutes after the
+   * last sandbox signal). Subscribing and reconnecting do not replay them.
+   * A lost stream position rejects with Centrifugo error 112; retry without
+   * `since`, and use REST `getLiveSignals()` for anything no longer retained.
+   */
+  async getSignalHistory(options: LiveSignalHistoryOptions = {}): Promise<LiveSignalHistory> {
+    const result = await this.subscription.history({ limit: options.limit ?? 300, since: options.since });
+    return {
+      publications: result.publications.map((publication) => {
+        if (publication.offset === undefined) {
+          throw new QTSError('Live signal history publication has no offset');
+        }
+        return { data: publication.data as LiveSignal, offset: publication.offset };
+      }),
+      epoch: result.epoch,
+      offset: result.offset,
+    };
   }
 
   /** Update this run's parameters through the `live.params` WebSocket RPC. */

@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against OpenAPI **0.128.22**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.24**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
@@ -59,3 +59,9 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 Prepare/execute/poll stages stay inside the backtest and sweep workflows because their temporary
 identifiers and lifecycle are owned there. The generated `@qtsurfer/api-client` remains available
 when an endpoint-level call is needed.
+
+AsyncAPI **0.3.0** is covered separately by `LiveConnection`: `connectLive()` manages the
+connection and `sig:<runId>` subscription, `getSignalHistory()` reads retained sandbox
+publications and their stream positions, and `updateParams()` sends `live.params`. The official
+Centrifugo client handles ping, token refresh, and reconnect. History must be requested explicitly
+after reconnect; subscribing does not replay missed signals.

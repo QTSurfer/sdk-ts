@@ -29,6 +29,10 @@ export {
   updateLiveParams,
   type LiveConnectionOptions,
   type LiveCommandRequest,
+  type LiveSignalHistory,
+  type LiveSignalHistoryEntry,
+  type LiveSignalHistoryOptions,
+  type LiveSignalHistoryPosition,
 } from './live';
 export type {
   LiveParamsUpdateResult,

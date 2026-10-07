@@ -1,5 +1,17 @@
 # @qtsurfer/sdk
 
+## 0.22.0
+
+### Minor Changes
+
+- Read recent sandbox signals over the live WebSocket with
+  `connection.getSignalHistory({ limit?, since? })`. The result contains oldest-first signals,
+  their stream offsets, and an epoch for resuming after reconnect; `onSignal` also receives the
+  publication offset as an optional second argument. Subscribing never replays missed signals
+  automatically. The channel holds at most 300 sandbox signals until five minutes after the last
+  one, so use `getLiveSignals()` for older gaps or live-stage signals. On lost position (error
+  `112`), retry without `since` and reconcile against REST history.
+
 ## 0.21.1
 
 ### Patch Changes

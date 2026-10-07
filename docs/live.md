@@ -42,8 +42,8 @@ REST client; `centrifuge` handles reconnects and server pings.
 ```ts
 const run = await qts.startLive(strategyId, { name: 'ETH breakout', relay: true });
 const connection = await qts.connectLive(run.runId, {
-  onSignal(signal) {
-    console.log(signal.signalId, signal.kind);
+  onSignal(signal, offset) {
+    console.log(signal.signalId, signal.kind, offset);
   },
   onError(error) {
     console.error('live connection problem', error);
@@ -61,9 +61,34 @@ in `listPublicLive()` only after promotion to `LIVE` and while it is running; pu
 does not expose a sandbox trial. Set `relay: true` to receive WebSocket signals from the run's first
 signal, including during `SANDBOX`; only the owner can subscribe during that trial. The same
 subscription continues after promotion; the transition can be quiet for several minutes, then
-signals produced meanwhile arrive in order. Retained signal history is readable in either stage,
+signals produced meanwhile arrive in order. REST retained signal history is readable in either stage,
 whether or not relay was enabled. A reconnect does not replay missed signals, so use
-`QTSurfer.getLiveSignals()` to read the retained history. It returns a
+`connection.getSignalHistory()` for recent sandbox signals held by the subscribed WebSocket channel,
+or `QTSurfer.getLiveSignals()` for the longer-lived REST history in either stage.
+The WebSocket channel holds at most the 300 most recent sandbox signals, until five minutes after
+the last sandbox signal; it never holds live-stage signals. Subscribe first, then read history to
+catch signals produced before the subscription. Signals received through `onSignal` can overlap
+the history reply, so deduplicate by `signalId`.
+
+```ts
+const history = await connection.getSignalHistory(); // defaults to limit 300, oldest first
+for (const { data: signal, offset } of history.publications) {
+  console.log(signal.signalId, offset);
+}
+
+// After a disconnect and resubscription, read only after the last saved position.
+const lastProcessedOffset = history.publications.at(-1)?.offset ?? history.offset;
+const later = await connection.getSignalHistory({
+  since: { offset: lastProcessedOffset, epoch: history.epoch },
+});
+const position = await connection.getSignalHistory({ limit: 0 }); // no publications
+```
+
+Save the `offset` of the last signal processed (including the optional second argument to `onSignal`)
+and the `epoch` of an earlier history reply for `since`. If the stream history was lost,
+Centrifugo rejects with code `112`; read again without
+`since` and use REST for signals that the channel no longer holds. Code `103` means this connection
+is not subscribed to the channel. `QTSurfer.getLiveSignals()` returns a
 `LiveSignalPage` containing oldest-first `signals`, an optional
 `_links.next.href` continuation, and the earliest available timestamp when
 retention has discarded older signals. Deduplicate by `signalId` when combining
@@ -180,10 +205,6 @@ Paper configuration fields are `initialFunding` (default 100), `feeRate` (defaul
 (`separate` by default or `mix` to include paper events in signal history). Paper account reads can
 return 404 when the run was started without paper configuration. `instrument` can be null on
 account-level paper signals.
-
-Only this TypeScript SDK currently provides managed WebSocket connections. Java and Python SDKs
-provide REST lifecycle and retained-signal APIs; those clients can use the protocol directly if
-they need streaming.
 
 The protocol is specified in the canonical
 [AsyncAPI contract](https://github.com/QTSurfer/qtsurfer-api/blob/main/asyncapi.yaml).
