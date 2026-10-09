@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against OpenAPI **0.128.24**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.25**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
@@ -40,11 +40,11 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getDatasetUpload` | `getDatasetUpload(datasetId, uploadId)` reads ingestion state. |
 | `importDataset` | `importDataset(request)` starts an external-history import. |
 | `getDatasetImport` | `getDatasetImport(datasetId, importId)` reads import progress. |
-| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom`; the response reports the effective value when present. |
+| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom` and `sandbox`; previously promoted compilations start in `LIVE` by default, and the response reports the effective warm-up value when present. |
 | `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` when present. |
 | `stopLive` | `stopLive(strategyId)`. |
 | `listLive` | `listLive(query?)` lists all runs owned by the caller, including sandbox and stopped runs. |
-| `listPublicLive` | `listPublicLive(query?)` lists only public runs promoted to `LIVE` and still running. |
+| `listPublicLive` | `listPublicLive(query?)` lists only public runs in `LIVE` and still running, including runs that started in that stage. |
 | `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs`, optional `stats`, and `warmFrom` when present. |
 | `updateLive` | `updateLive(runId, request)` changes mutable run metadata. |
 | `updateLiveParams` | `updateLiveParams(runId, request)` or `LiveConnection.updateParams(params)`. |

@@ -32,6 +32,7 @@ describe('live commands', () => {
   it('sets warm-up on start and accepts omitted values on runs that predate the field', async () => {
     const { startLive, getLive } = await import('../../src/live');
     expectTypeOf<StartLiveRequest['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<StartLiveRequest['sandbox']>().toEqualTypeOf<boolean | undefined>();
     expectTypeOf<LiveRunWithStream['warmFrom']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<LiveRunDetail['warmFrom']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<StartLiveRequest['sources'][number]['instruments']>().toEqualTypeOf<string[] | undefined>();
@@ -39,6 +40,7 @@ describe('live commands', () => {
     const request = {
       sources: [{ venueType: 'cx', exchange: 'binance', segment: 'spot', type: 'ticker' }],
       warmFrom: 0,
+      sandbox: true,
     } satisfies StartLiveRequest;
     const started = { runId: 'run-1', warmFrom: 0 };
     apiStartLive.mockResolvedValueOnce(ok(started, 201));

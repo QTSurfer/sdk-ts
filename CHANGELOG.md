@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.23.0
+
+### Minor Changes
+
+- Expose `StartLiveRequest.sandbox` and document that previously promoted compiled strategies start in `LIVE` by default, with `sandbox: true` available to repeat the trial and retain WebSocket history.
+
 ## 0.22.0
 
 ### Minor Changes

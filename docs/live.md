@@ -40,7 +40,11 @@ run. The SDK mints and refreshes its connection token through the configured
 REST client; `centrifuge` handles reconnects and server pings.
 
 ```ts
-const run = await qts.startLive(strategyId, { name: 'ETH breakout', relay: true });
+const run = await qts.startLive(strategyId, {
+  name: 'ETH breakout',
+  relay: true,
+  sandbox: true, // retain WebSocket history even for an already-promoted strategy
+});
 const connection = await qts.connectLive(run.runId, {
   onSignal(signal, offset) {
     console.log(signal.signalId, signal.kind, offset);
@@ -55,16 +59,26 @@ connection.disconnect();
 await qts.stopLive(strategyId);
 ```
 
-Every new run starts in the `SANDBOX` stage. The owner can inspect that run with `getLive()` or
-`listLive()` even while it is in sandbox, regardless of its requested visibility. A public run appears
-in `listPublicLive()` only after promotion to `LIVE` and while it is running; public visibility alone
-does not expose a sandbox trial. Set `relay: true` to receive WebSocket signals from the run's first
-signal, including during `SANDBOX`; only the owner can subscribe during that trial. The same
-subscription continues after promotion; the transition can be quiet for several minutes, then
-signals produced meanwhile arrive in order. REST retained signal history is readable in either stage,
-whether or not relay was enabled. A reconnect does not replay missed signals, so use
-`connection.getSignalHistory()` for recent sandbox signals held by the subscribed WebSocket channel,
-or `QTSurfer.getLiveSignals()` for the longer-lived REST history in either stage.
+The first run of a compiled strategy starts in the `SANDBOX` stage. After one of your runs has
+passed the trial and been promoted, later runs of that same compiled strategy start in `LIVE` at once,
+with the earlier verdict in `gate`; recompiling the strategy starts a new trial. This inherited
+verdict applies when none of that compilation's runs was stopped for exceeding its resource limit.
+The owner can inspect either stage with `getLive()` or `listLive()`. A public run appears in
+`listPublicLive()` only while it is running in `LIVE`; public visibility alone does not expose a
+sandbox trial.
+
+Pass `sandbox: true` to repeat the trial for an already-promoted compilation, for example when
+debugging and reading signals back over the connection. It has no effect before a strategy has
+passed its first trial. The default is `false`.
+
+Set `relay: true` to receive WebSocket signals from the run's first signal, including during
+`SANDBOX`; only the owner can subscribe during that trial. The same subscription continues after
+promotion; the transition can be quiet for several minutes, then signals produced meanwhile arrive
+in order. REST retained signal history is readable in either stage, whether or not relay was enabled.
+A reconnect does not replay missed signals, so use `connection.getSignalHistory()` for recent sandbox
+signals held by the subscribed WebSocket channel, or `QTSurfer.getLiveSignals()` for the longer-lived
+REST history in either stage. A run that starts directly in `LIVE` does not retain WebSocket history;
+use `sandbox: true` when you need that history.
 The WebSocket channel holds at most the 300 most recent sandbox signals, until five minutes after
 the last sandbox signal; it never holds live-stage signals. Subscribe first, then read history to
 catch signals produced before the subscription. Signals received through `onSignal` can overlap
