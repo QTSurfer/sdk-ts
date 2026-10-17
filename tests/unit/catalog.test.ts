@@ -32,13 +32,13 @@ function err(payload: unknown, status = 404) {
   return { data: undefined, error: payload, response: { status } as Response };
 }
 
-const BTC = { id: 'BTC/USDT', base: 'BTC', quote: 'USDT' };
-const ETH = { id: 'ETH/USDT', base: 'ETH', quote: 'USDT' };
+const BTC = { id: 'BTC/USDT', symbol: 'BTC/USDT', base: 'BTC', quote: 'USDT' };
+const ETH = { id: 'ETH/USDT', symbol: 'ETH/USDT', base: 'ETH', quote: 'USDT' };
 
 function envelope(data: unknown[], segment: 'spot' | 'futures' = 'spot') {
   return {
     data,
-    meta: { updatedAt: '2026-01-15T10:00:00Z', exchange: 'binance', segment },
+    meta: { updatedAt: '2026-10-15T10:00:00Z', exchange: 'binance', segment, venueType: 'cex' },
     _links: { self: { href: '/exchange/binance/instruments' } },
   };
 }
@@ -55,8 +55,8 @@ describe('QTSurfer.listExchanges', () => {
 
   it('returns the exchange list', async () => {
     const exchanges = [
-      { id: 'binance', name: 'Binance' },
-      { id: 'kraken', name: 'Kraken', description: 'Kraken exchange' },
+      { id: 'binance', name: 'Binance', venueType: 'cex', segments: ['spot', 'futures'], liveSegments: ['spot'] },
+      { id: 'robinhood', name: 'Robinhood Chain', venueType: 'dex', segments: ['uniswap-v3'], liveSegments: ['uniswap-v3'] },
     ];
     apiListExchanges.mockResolvedValue(ok(exchanges));
 

@@ -6,7 +6,17 @@
  */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export { getAccount, getAccountUsage } from './account';
-export type { Account, AccountUsage } from '@qtsurfer/api-client';
+export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, KeyScopes, ErrorNextCall, ResponseError } from '@qtsurfer/api-client';
+export type {
+  DatasetVersion,
+  DatasetImportCexRequest,
+  DatasetImportDexRequest,
+  InstrumentCatalogueResponse,
+  InstrumentListResponse,
+  PoolListResponse,
+  LiveSource,
+  LiveSourceRequest,
+} from '@qtsurfer/api-client';
 export {
   DEFAULT_LIVE_URL,
   LiveConnection,
@@ -95,7 +105,7 @@ export type {
   WalkForwardFold,
   WalkForwardResult,
 } from './workflows/sweep';
-export type { DownloadFormat } from './workflows/downloads';
+export type { DownloadFormat, DownloadResult } from './workflows/downloads';
 export type {
   CreateDatasetRequest,
   Dataset,
@@ -111,6 +121,7 @@ export type {
   Exchange,
   InstrumentDetail,
   InstrumentSegment,
+  PoolDetail,
 } from './workflows/catalog';
 export type {
   CompiledStrategy,

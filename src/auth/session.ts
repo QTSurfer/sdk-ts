@@ -14,13 +14,18 @@ import {
 import {
   listExchanges,
   listInstruments,
+  getPools,
   type Exchange,
   type InstrumentDetail,
   type InstrumentSegment,
+  type PoolDetail,
 } from '../workflows/catalog';
 import {
   downloadKlines,
   downloadTickers,
+  downloadTickersWithMetadata,
+  downloadKlinesWithMetadata,
+  type DownloadResult,
 } from '../workflows/downloads';
 import {
   createDataset,
@@ -160,9 +165,12 @@ export class AuthenticatedClient {
         ...(this.fetchImpl ? { fetch: this.fetchImpl } : {}),
       });
       if (error || !data) {
+        const message = error && typeof error === 'object'
+          && 'message' in error && typeof error.message === 'string' ? ` — ${error.message}` : '';
         throw new QTSAuthError(
-          `authenticate() failed: HTTP ${response.status}`,
+          `authenticate() failed: HTTP ${response?.status ?? 'unknown'}${message}`,
           error,
+          response?.status,
         );
       }
       this.cached = data;
@@ -184,8 +192,11 @@ export class AuthenticatedClient {
     if (this.cached) return this.cached;
     const stored = await this.store.load();
     if (stored) {
-      this.cached = stored;
-      return stored;
+      // Tokens persisted before resource/action scopes used a reserved empty list.
+      // Migrate that representation without discarding the still-valid JWT.
+      this.cached = Array.isArray(stored.scopes) ? { ...stored, scopes: {} } : stored;
+      if (this.cached !== stored) await this.store.save(this.cached);
+      return this.cached;
     }
     return this.refresh();
   }
@@ -325,6 +336,16 @@ export class AuthenticatedClient {
     return this.withRefreshOn401(() => downloadKlines(args));
   }
 
+  /** Download tickers with timestamp/provisional metadata. Refreshes once on `401`. */
+  downloadTickersWithMetadata(args: DownloadHourArgs): Promise<DownloadResult> {
+    return this.withRefreshOn401(() => downloadTickersWithMetadata(args));
+  }
+
+  /** Download klines with timestamp/provisional metadata. Refreshes once on `401`. */
+  downloadKlinesWithMetadata(args: DownloadHourArgs): Promise<DownloadResult> {
+    return this.withRefreshOn401(() => downloadKlinesWithMetadata(args));
+  }
+
   /**
    * List the exchanges the platform serves. Refreshes the token once on `401`
    * before retrying.
@@ -349,6 +370,11 @@ export class AuthenticatedClient {
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return this.withRefreshOn401(() => listInstruments(exchangeId, segment));
+  }
+
+  /** Read a DEX exchange's pool array. Refreshes once on `401`. */
+  getPools(exchangeId: string, segment?: string): Promise<PoolDetail[]> {
+    return this.withRefreshOn401(() => getPools(exchangeId, segment));
   }
 
   /** @deprecated Use {@link AuthenticatedClient.getInstruments}. */
@@ -481,7 +507,9 @@ export class AuthenticatedClient {
  * `getInstruments`, `compileStrategy`, `validateStrategy`, `getStrategy`,
  * `getStrategies`, `deleteStrategy`, `getStrategyCode`).
  *
- * @throws {QTSAuthError} if no apikey is supplied or available in env.
+ * @throws {QTSAuthError} if no apikey is available or token issuance is rejected.
+ * A `403` / `apikey_without_scopes` requires a key with at least one resource/action
+ * grant; this rejection is not retried automatically.
  */
 export async function authenticate(
   apikey?: string,

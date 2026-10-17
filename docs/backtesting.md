@@ -11,6 +11,15 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 `executeBacktest` owns compile, prepare, execution, and polling. It returns the completed result, while
 `onProgress`, `AbortSignal`, and timeout options make caller policy explicit.
 
+The high-level `executeBacktest()` and `sweep()` workflows prepare `ticker` data at the platform's
+default cadence; they do not expose source type or cadence selection. For explicit kline or funding
+preparation, use `prepareBacktest` from `@qtsurfer/api-client`. Managed-exchange kline preparation
+accepts the same fifteen labels as ticker/funding: `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`,
+`1h`, `2h`, `4h`, `8h`, `12h`, `1d`, `1w`, `1q`; omitted, cadence defaults to `1s`. See the
+[API preparation guide](https://github.com/QTSurfer/qtsurfer-api/blob/main/docs/backtest_execute.md#preparing-data)
+for dataset resampling rules. A DEX venue id cannot be prepared directly; import the pool's
+history as a dataset first.
+
 ```ts
 const result = await qts.executeBacktest({
   strategy: source, exchangeId: 'binance', instrument: 'BTC/USDT',

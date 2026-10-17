@@ -1,8 +1,10 @@
+import type { ErrorNextCall } from '@qtsurfer/api-client';
+
 /**
  * Base class for every error the SDK throws. Catch this to handle all SDK
  * failures generically, or catch a specific subclass below to tell which
  * stage failed. `status` is only set when the throw site had an HTTP status
- * to attach: {@link QTSDownloadError} always carries one, and so does the
+ * to attach: {@link QTSDownloadError} carries one after an HTTP response, as does the
  * plain `QTSError` thrown by the single-request calls (`exchanges`,
  * `instruments`, `validateStrategy`, `strategy`). The workflow-stage errors
  * carry `cause` instead and encode retryability in their message.
@@ -10,10 +12,18 @@
 export class QTSError extends Error {
   /** HTTP status code, when the underlying transport surfaced one. */
   readonly status?: number;
+  /** Stable server cause. Treat an unknown value like an absent reason. */
+  readonly reason?: string;
+  /** Suggested recovery request; caller-specific fields such as a name may be absent. */
+  readonly next?: ErrorNextCall;
   constructor(message: string, readonly cause?: unknown, status?: number) {
     super(message);
     this.name = 'QTSError';
     if (status !== undefined) this.status = status;
+    if (cause && typeof cause === 'object') {
+      if ('reason' in cause && typeof cause.reason === 'string') this.reason = cause.reason;
+      if ('next' in cause && isNextCall(cause.next)) this.next = cause.next;
+    }
   }
 }
 
@@ -82,24 +92,46 @@ export class QTSCanceledError extends QTSError {
 
 /**
  * Thrown by the tickers/klines download functions on any non-2xx response or
- * transport failure. Carries the HTTP `status` when one was received: a
- * `4xx` means the request itself is wrong (bad hour or instrument), while a
- * `5xx` or a missing status (transport failure) is generally safe to retry.
+ * transport failure. Inspect `reason`: `OUTSIDE_WINDOW` provides `next` for a
+ * dataset import; `NOT_YET_AVAILABLE` and `TEMPORARILY_UNAVAILABLE` can be retried
+ * after `retryAfter` seconds; `NO_DATA` means the stored hour has no rows.
  */
 export class QTSDownloadError extends QTSError {
-  constructor(message: string, cause?: unknown, status?: number) {
+  /** Raw response headers, when a response was received. */
+  readonly headers?: Headers;
+  /** Server-provided delay, in seconds. Absent when no delay was given. */
+  readonly retryAfter?: string;
+  constructor(message: string, cause?: unknown, status?: number, headers?: Headers) {
     super(message, cause, status);
     this.name = 'QTSDownloadError';
+    this.headers = headers;
+    this.retryAfter = headers?.get('Retry-After') ?? undefined;
   }
+}
+
+function isNextCall(value: unknown): value is ErrorNextCall {
+  return !!value && typeof value === 'object'
+    && 'method' in value && typeof value.method === 'string'
+    && ['GET', 'POST', 'PUT', 'DELETE'].includes(value.method)
+    && 'path' in value && typeof value.path === 'string'
+    && (!('body' in value) || value.body === undefined
+      || (!!value.body && typeof value.body === 'object' && !Array.isArray(value.body)));
 }
 
 /**
  * Thrown by the `authenticate()` helper when the apikey is missing or the JWT
- * exchange fails (HTTP 401 from `POST /v1/auth/token`, etc.).
+ * exchange fails. Invalid, revoked, or expired keys return `401`; a deployment
+ * requiring scopes can return `403` / `apikey_without_scopes` without minting a
+ * token. Create a key with at least one resource/action scope before trying again.
  */
 export class QTSAuthError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  /** Machine-readable server code, including `apikey_without_scopes` on a scope-required rejection. */
+  readonly code?: string;
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSAuthError';
+    if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string') {
+      this.code = cause.code;
+    }
   }
 }

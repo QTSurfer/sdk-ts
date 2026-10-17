@@ -8,13 +8,18 @@ import {
 import {
   listExchanges,
   listInstruments,
+  getPools,
   type Exchange,
   type InstrumentDetail,
   type InstrumentSegment,
+  type PoolDetail,
 } from './workflows/catalog';
 import {
   downloadKlines,
   downloadTickers,
+  downloadTickersWithMetadata,
+  downloadKlinesWithMetadata,
+  type DownloadResult,
   type DownloadFormat,
 } from './workflows/downloads';
 import {
@@ -123,7 +128,7 @@ export interface DownloadHourArgs {
   base: string;
   /** Quote asset of the instrument, e.g. `USDT`. */
   quote: string;
-  /** Hour selector in `YYYY-MM-DDTHH` (UTC). */
+  /** Hour selector in `YYYY-MM-DDTHH` (UTC), within the last seven days. */
   hour: string;
   /** Wire format. Defaults to `'lastra'`. */
   format?: DownloadFormat;
@@ -155,7 +160,7 @@ export class QTSurfer {
     });
   }
 
-  /** Read the authenticated account's tier and limits. */
+  /** Read account tier, limits, and resource/action scopes (currently reported, not enforced). */
   getAccount(): Promise<Account> {
     return getAccount();
   }
@@ -314,6 +319,16 @@ export class QTSurfer {
     return downloadKlines(args);
   }
 
+  /** Download tickers and inspect timestamp units, provisional markers, and raw headers. */
+  downloadTickersWithMetadata(args: DownloadHourArgs): Promise<DownloadResult> {
+    return downloadTickersWithMetadata(args);
+  }
+
+  /** Download klines and inspect timestamp units, provisional markers, and raw headers. */
+  downloadKlinesWithMetadata(args: DownloadHourArgs): Promise<DownloadResult> {
+    return downloadKlinesWithMetadata(args);
+  }
+
   /**
    * List the exchanges the platform serves. Each `id` is what every other
    * method takes as `exchangeId`.
@@ -331,7 +346,7 @@ export class QTSurfer {
   }
 
   /**
-   * List an exchange's instruments, each with the per-data-type `coverage`
+   * List a CEX exchange's instruments, each with the per-data-type `coverage`
    * that says which date windows are actually downloadable.
    *
    * Omitting `segment` asks for the exchange's **default** segment, which is
@@ -342,14 +357,20 @@ export class QTSurfer {
    * explicitly rather than relying on the default.
    *
    * @param exchangeId exchange identifier, e.g. `binance`
+   * @param segment catalogue segment discovered from the exchange; defaults to spot
    * @throws QTSError on any non-2xx response, with the HTTP status on
-   * `status`.
+   * `status`, or if the exchange returns a DEX pool catalogue (use `getPools`).
    */
   getInstruments(
     exchangeId: string,
     segment?: InstrumentSegment,
   ): Promise<InstrumentDetail[]> {
     return listInstruments(exchangeId, segment);
+  }
+
+  /** Read a DEX exchange's pool array; omit the protocol to use its first segment. */
+  getPools(exchangeId: string, segment?: string): Promise<PoolDetail[]> {
+    return getPools(exchangeId, segment);
   }
 
   /** @deprecated Use {@link QTSurfer.getInstruments}. */

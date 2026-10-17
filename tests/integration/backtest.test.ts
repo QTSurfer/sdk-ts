@@ -16,23 +16,24 @@ const log = (...args: unknown[]) => {
   if (verbose) console.log(...args);
 };
 
-function dayStartIso(offsetDays: number): string {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() - offsetDays);
-  return d.toISOString();
-}
-
 async function loadStrategy(): Promise<string> {
   return readFile(strategyPath, 'utf8');
 }
 
-describeIfToken('integration: backtest BTC/USDT on binance (yesterday)', () => {
+describeIfToken('integration: backtest BTC/USDT on binance using served coverage', () => {
   it('completes compile → prepare → execute and returns a ResultMap', async () => {
     const qts = new QTSurfer({ baseUrl, token });
     const strategy = await loadStrategy();
-    const from = dayStartIso(1); // yesterday 00:00 UTC
-    const to = dayStartIso(0); // today 00:00 UTC (24h window)
+    const instruments = await qts.getInstruments('binance', 'spot');
+    const coverage = instruments.find((instrument) => instrument.id === 'BTC/USDT')?.coverage?.tickers;
+    if (!coverage?.from || !coverage.to) throw new Error('BTC/USDT ticker coverage is unavailable');
+    const end = Math.min(Date.parse(coverage.to), Date.now());
+    const start = Math.max(Date.parse(coverage.from), end - 24 * 60 * 60 * 1000);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
+      throw new Error('BTC/USDT ticker coverage has no usable range');
+    }
+    const from = new Date(start).toISOString();
+    const to = new Date(end).toISOString();
 
     const stages: string[] = [];
     const result = await qts.backtest(

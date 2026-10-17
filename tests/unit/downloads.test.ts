@@ -35,7 +35,7 @@ describe('QTSurfer.downloadTickers / downloadKlines', () => {
   });
 
   it('downloadTickers() defaults to lastra and returns the Blob', async () => {
-    const blob = new Blob(['LASTRA'], { type: 'application/vnd.lastra' });
+    const blob = new Blob(['LASTRA'], { type: 'application/vnd.qtsurfer.lastra' });
     apiDownloadTickers.mockResolvedValue(ok(blob));
 
     const { QTSurfer } = await import('../../src/client');
@@ -52,6 +52,7 @@ describe('QTSurfer.downloadTickers / downloadKlines', () => {
     expect(apiDownloadTickers).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10' },
+      parseAs: 'blob',
     });
   });
 
@@ -71,6 +72,7 @@ describe('QTSurfer.downloadTickers / downloadKlines', () => {
     expect(apiDownloadTickers).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10', format: 'parquet' },
+      parseAs: 'blob',
     });
   });
 
@@ -90,6 +92,7 @@ describe('QTSurfer.downloadTickers / downloadKlines', () => {
     expect(apiDownloadKlines).toHaveBeenCalledWith({
       path: { exchangeId: 'binance', base: 'BTC', quote: 'USDT' },
       query: { hour: '2026-01-15T10', format: 'parquet' },
+      parseAs: 'blob',
     });
   });
 

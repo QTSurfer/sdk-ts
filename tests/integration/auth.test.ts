@@ -58,6 +58,7 @@ describe('integration: authenticate() against a stubbed /auth/token endpoint', (
     handler = (_req, res) => {
       jsonResponse(res, 200, {
         access_token: 'jwt-int-1',
+        scopes: { exchanges: ['read'], backtests: ['read', 'execute'] },
         token_type: 'Bearer',
         expires_in: 3600,
         tier: 'free',
@@ -67,6 +68,7 @@ describe('integration: authenticate() against a stubbed /auth/token endpoint', (
     const session = await authenticate('ak_int_explicit', { baseUrl });
 
     expect(session.token?.access_token).toBe('jwt-int-1');
+    expect(session.token?.scopes).toEqual({ exchanges: ['read'], backtests: ['read', 'execute'] });
     expect(authHits).toHaveLength(1);
     expect(authHits[0]?.apikey).toBe('ak_int_explicit');
   });
@@ -92,6 +94,7 @@ describe('integration: authenticate() against a stubbed /auth/token endpoint', (
     handler = (_req, res) => {
       jsonResponse(res, 200, {
         access_token: 'jwt-stored',
+        scopes: { datasets: ['read', 'write'] },
         token_type: 'Bearer',
         expires_in: 3600,
         tier: 'elite',
@@ -111,7 +114,7 @@ describe('integration: authenticate() against a stubbed /auth/token endpoint', (
     });
 
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ access_token: 'jwt-stored', tier: 'elite' });
+    expect(saved[0]).toMatchObject({ access_token: 'jwt-stored', tier: 'elite', scopes: { datasets: ['read', 'write'] } });
   });
 
   it('throws QTSAuthError when the stub returns 401', async () => {
@@ -124,5 +127,25 @@ describe('integration: authenticate() against a stubbed /auth/token endpoint', (
 
     const { QTSAuthError } = await import('../../src/errors');
     await expect(authenticate('ak_bad', { baseUrl })).rejects.toBeInstanceOf(QTSAuthError);
+  });
+
+  it('surfaces a 403 scope-required rejection without minting, persisting, or retrying a token', async () => {
+    handler = (_req, res) => {
+      jsonResponse(res, 403, {
+        code: 'apikey_without_scopes',
+        message: 'Create a key with at least one resource/action scope in the web app.',
+      });
+    };
+    const saved: unknown[] = [];
+    const { QTSAuthError } = await import('../../src/errors');
+    const failure = await authenticate('ak_without_scopes', {
+      baseUrl,
+      store: { load: () => null, save: (token) => { saved.push(token); }, clear: () => undefined },
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(QTSAuthError);
+    expect(failure).toMatchObject({ status: 403, code: 'apikey_without_scopes' });
+    expect(saved).toEqual([]);
+    expect(authHits).toHaveLength(1);
   });
 });

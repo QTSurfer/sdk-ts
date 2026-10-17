@@ -10,18 +10,24 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 
 ## Read tier limits
 
-`getAccount()` returns the caller id, tier, and the account limits.
+`getAccount()` returns the caller id, tier, resource/action scopes, and account limits.
 
 ```ts
 const account = await qts.getAccount();
 console.log(`${account.tier} allows ${account.maxDatasets} datasets`);
 console.log(`full-grid sweep limit: ${account.maxSweepCartesian} combinations`);
+console.log(account.scopes.backtests); // e.g. ['read', 'write', 'execute']
 ```
 
 `maxSweepCartesian` is the maximum product of axis sizes accepted by the `grid` sampler. A larger
 grid is rejected; use `random` or `lhs` with an explicit `samples` count to evaluate a bounded subset.
 Those samplers are not subject to the Cartesian-grid limit. See [backtesting.md](backtesting.md) for
 sweep options.
+
+`scopes` is a required resource-to-actions map, with `{}` for a key with none. It is the same
+map returned with the token for that key. A resource is present only with at least one action.
+Individual operations currently report these grants without enforcing missing scopes;
+token issuance can reject a key with none. See [authentication](auth.md#resource-and-action-scopes).
 
 ## Read current usage
 

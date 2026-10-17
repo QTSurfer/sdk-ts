@@ -1,5 +1,23 @@
 # @qtsurfer/sdk
 
+## 0.24.0
+
+### Minor Changes
+
+- ### Discover venues and run DEX pools
+
+  Use `getExchanges()` to discover CEX/DEX venue types, catalogue segments, and live-capable segments. `getPools(exchangeId, protocol?)` returns typed DEX pools while `getInstruments()` retains its CEX instrument-array signature. Pool `id` is the address used by a single-pool `kline` live source; signals use the pool's `symbol`. Source requests now use `cex` and `dex`. Unknown market prices, volumes, and pool creation dates are omitted.
+
+  ### Download recent hours and import older history
+
+  `downloadTickersWithMetadata()` and `downloadKlinesWithMetadata()` return untouched bytes with timestamp-unit/provisional markers and raw headers; existing download methods still return `Blob`. Hourly downloads cover the last seven days. Lastra uses `application/vnd.qtsurfer.lastra` and microseconds; Parquet timestamps remain milliseconds. Provisional bytes can still grow, and deployments without provisional answers return `NOT_YET_AVAILABLE` instead.
+
+  Handle structured `QTSError.reason` and `next` recovery requests, plus `QTSDownloadError.retryAfter` and response headers. Retry `NOT_YET_AVAILABLE` and `TEMPORARILY_UNAVAILABLE` after the server's delay; `NO_DATA` means a stored empty hour. `OUTSIDE_WINDOW` supplies a dataset-import request for older history. `importDataset()` accepts CEX ticker/kline history with the full cadence vocabulary, alongside DEX history. The guides explain asynchronous cadence failures and kline preparation's fifteen labels through the generated client.
+
+  ### Inspect resource/action grants
+
+  Read exported `KeyScopes` maps from tokens and accounts. A scope is one resource and one action; resources without actions are omitted, and keys without grants report `{}`. Persisted legacy scope lists are migrated to `{}` without replacing a valid JWT. Individual operations currently report grants without enforcing missing scopes, but token issuance can require at least one scope: `QTSAuthError` exposes `403`, code `apikey_without_scopes`, and the server's recovery message without automatically retrying. Create a key with at least one scope before authenticating again. Updated authentication, account, market-data, dataset, backtesting, and live guides cover OpenAPI 0.128.37; all 48 REST operations remain mapped and AsyncAPI stays at 0.3.0.
+
 ## 0.23.0
 
 ### Minor Changes

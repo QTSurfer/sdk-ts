@@ -7,7 +7,7 @@ import {
 import { QTSError } from './errors';
 import { requestFailed } from './internal/requestError';
 
-/** Read the authenticated account's tier and limits. */
+/** Read the authenticated account's tier, resource/action grants, and limits. Scopes are reported, not enforced. */
 export async function getAccount(): Promise<Account> {
   const { data, error, response } = await apiGetAccount();
   if (error) throw requestFailed('get account call', error, response?.status);

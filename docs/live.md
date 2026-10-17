@@ -3,18 +3,57 @@
 Start with an authenticated session; every snippet below uses `qts`:
 
 ```ts
-import { authenticate } from '@qtsurfer/sdk';
+import { authenticate, type StartLiveRequest } from '@qtsurfer/sdk';
 
 const qts = await authenticate(); // reads QTSURFER_APIKEY
+const cexSources: StartLiveRequest['sources'] = [{
+  venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker', instruments: ['ETH/USDT'],
+}];
 ```
+
+## Selecting sources
+
+`sources` is required and holds exactly one entry. Discover `venueType`, `exchange`, and
+`segment` together from `getExchanges()`: choose `cex` or `dex`, the venue's id, and one of its
+`liveSegments`. A listed catalogue segment without live data is refused with `400`; for example,
+CEX `futures` is currently catalogue-only. Values and `type` are normalized to lower case;
+the server also accepts legacy `cx`/`dx`, but new typed requests use `cex`/`dex`.
 
 ## Selecting instruments
 
-When starting a run, you can leave `instruments` out of its source. If the compiled strategy recorded an
+For a CEX run, you can leave `instruments` out of its source. If the compiled strategy recorded an
 instrument list, the run uses that list; otherwise it reads every instrument offered by the exchange and
 segment. An explicit list is used as sent, and `['*']` requests every instrument. Empty lists and `null`
 are rejected. Instrument symbols are case-insensitive; `*` on either side of `/` matches any base or quote,
 such as `*/USDT` or `BTC/*`.
+
+## DEX pools
+
+A DEX source reads exactly one pool: `type: 'kline'`, one `0x` plus 40-hex-digit pool address in
+`instruments`, and a chain/protocol from discovery. Today those are `robinhood` and `uniswap-v3`.
+The address is required; omitted instruments, wildcard selection, and multiple pools are refused.
+Use a kline strategy. Pool catalogues are available through `getPools()`; `id` is the address to
+send and `symbol` is the pair written into signals, which can differ from another site's ordering.
+
+```ts
+const dex = (await qts.getExchanges()).find((venue) => venue.venueType === 'dex');
+if (!dex || !dex.liveSegments[0]) throw new Error('No live DEX protocol available');
+const pools = await qts.getPools(dex.id, dex.liveSegments[0]);
+const pool = pools[0];
+if (!pool) throw new Error('No pool currently listed');
+const poolRun = await qts.startLive(klineStrategyId, {
+  sources: [{ venueType: 'dex', exchange: dex.id, segment: dex.liveSegments[0], type: 'kline', instruments: [pool.id] }],
+  warmFrom: 0,
+});
+```
+
+The strategy receives one candle per second. A second without swaps is a flat candle carrying the
+previous close. A newly followed pool can have no earlier feed to replay, so warm-up cannot invent
+history. A pool outside the top catalogue can still run. An address that is not a pool of its
+protocol, or lack of capacity to follow another pool, ends the run within seconds with
+`state: 'FAILED'`, `desired: 'STOPPED'`, and a public `reason`; it holds no active-run slot.
+Unsupported venue/exchange/protocol combinations are rejected at start with `400` instead.
+Treat unfamiliar failure sentences as failures rather than parsing their wording.
 
 ## Warming up indicators
 
@@ -26,7 +65,7 @@ absent only on historical runs started before this field existed.
 
 ```ts
 const run = await qts.startLive(strategyId, {
-  sources: [{ venueType: 'cx', exchange: 'binance', segment: 'spot', type: 'ticker' }],
+  sources: cexSources,
   warmFrom: 0, // start with empty indicators and no replay
 });
 console.log(run.warmFrom); // 0
@@ -41,6 +80,7 @@ REST client; `centrifuge` handles reconnects and server pings.
 
 ```ts
 const run = await qts.startLive(strategyId, {
+  sources: cexSources,
   name: 'ETH breakout',
   relay: true,
   sandbox: true, // retain WebSocket history even for an already-promoted strategy
@@ -143,7 +183,7 @@ frames, so keep it out of logs and shared output. Open it with the WebSocket imp
 application already uses; `connectLive()` is a separate Centrifugo connection.
 
 ```ts
-const streamedRun = await qts.startLive(strategyId, { name: 'ETH stream', stream: true });
+const streamedRun = await qts.startLive(strategyId, { sources: cexSources, name: 'ETH stream', stream: true });
 if (!streamedRun.streamUrl) throw new Error('The run did not return a stream URL');
 
 const socket = new WebSocket(streamedRun.streamUrl);
@@ -160,9 +200,9 @@ run, and is safe to repeat. Failures remain `QTSError`s with their HTTP `status`
 for example, `409` means the run has no usable stream and `429` means your plan cannot broadcast.
 
 ```ts
-const { streamUrl: replacementUrl } = await qts.rotateLiveStream(streamRun.runId);
+const { streamUrl: replacementUrl } = await qts.rotateLiveStream(streamedRun.runId);
 const replacementSocket = new WebSocket(replacementUrl);
-await qts.revokeLiveStream(streamRun.runId); // stops this URL; the run itself keeps going
+await qts.revokeLiveStream(streamedRun.runId); // stops this URL; the run itself keeps going
 ```
 
 ```ts
@@ -204,6 +244,7 @@ equity history are read through these methods. Equity accepts optional `currency
 
 ```ts
 const paperRun = await qts.startLive(strategyId, {
+  sources: cexSources,
   name: 'ETH paper run',
   relay: true,
   paper: { initialFunding: 1_000, feeRate: 0.001, percentAmountToLock: 20, output: 'separate' },

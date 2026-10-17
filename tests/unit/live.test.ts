@@ -38,7 +38,7 @@ describe('live commands', () => {
     expectTypeOf<StartLiveRequest['sources'][number]['instruments']>().toEqualTypeOf<string[] | undefined>();
 
     const request = {
-      sources: [{ venueType: 'cx', exchange: 'binance', segment: 'spot', type: 'ticker' }],
+      sources: [{ venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker' }],
       warmFrom: 0,
       sandbox: true,
     } satisfies StartLiveRequest;

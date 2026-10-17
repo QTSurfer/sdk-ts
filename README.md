@@ -16,6 +16,7 @@ Where `@qtsurfer/api-client` gives you one typed function per API endpoint, `@qt
 The hand-written guides mirror the SDK family structure. TypeDoc remains the generated API reference.
 
 - [Authentication](docs/auth.md)
+- [Account scopes, limits, and storage usage](docs/account.md)
 - [Market data: exchanges, instruments, and downloads](docs/market_data.md)
 - [Strategies and validation](docs/strategy.md)
 - [Backtests and parameter sweeps](docs/backtesting.md)
@@ -84,6 +85,13 @@ const qts = await authenticate(undefined, { store: browserStore });
 
 `authenticate()` also accepts `{ baseUrl, fetch }` for staging, custom HTTP
 transports, or a Node-`fetch` polyfill in legacy runtimes.
+
+Token `scopes` and `(await qts.getAccount()).scopes` are resource-to-actions maps such as
+`{ backtests: ['read', 'execute'] }`, with `{}` for no grants. They are currently reported without
+enforcement on individual operations. Resources without actions are omitted. A deployment can
+require at least one scope to mint a token: `403 apikey_without_scopes` raises `QTSAuthError`
+without automatic retries. Stored legacy `scopes: []` values are migrated to `{}`;
+see [authentication](docs/auth.md).
 
 ### Lower-level: hand-managed JWT
 
@@ -235,29 +243,36 @@ leaderboard. Read `result.status` to tell
 
 ## Hourly tickers/klines downloads
 
-Stream one hour of raw ticker or kline data for an instrument. The default wire format is [Lastra](https://github.com/QTSurfer/lastra-ts) (`application/vnd.lastra`); pass `format: 'parquet'` for on-the-fly Parquet conversion.
+Download one instrument-hour within the last seven days. The default wire format is
+[Lastra](https://github.com/QTSurfer/lastra-ts) (`application/vnd.qtsurfer.lastra`), whose `ts`
+values are microseconds; `format: 'parquet'` uses millisecond timestamps.
 
 ```ts
-// Lastra (default)
-const blob = await qts.downloadTickers({
+const hour = new Date(Date.now() - 2 * 3_600_000).toISOString().slice(0, 13);
+const downloaded = await qts.downloadTickersWithMetadata({
   exchangeId: 'binance',
   base: 'BTC',
   quote: 'USDT',
-  hour: '2026-01-15T10',
+  hour,
 });
-await Bun.write('BTC_USDT_2026-01-15_h10.lastra', await blob.arrayBuffer());
+console.log(downloaded.tsUnit, downloaded.dataStatus, downloaded.dataThrough);
+// Provisional bytes can grow; fetch again later for the stored hour.
 
 // Parquet
 const klines = await qts.downloadKlines({
   exchangeId: 'binance',
   base: 'BTC',
   quote: 'USDT',
-  hour: '2026-01-15T10',
+  hour,
   format: 'parquet',
 });
 ```
 
-HTTP errors surface as `QTSDownloadError` (subclass of `QTSError`).
+`downloadTickers()` and `downloadKlines()` keep returning a `Blob`; the `WithMetadata` variants
+also expose raw headers and provisional markers. `QTSDownloadError` carries `reason`, `next`, and
+`retryAfter`: retry `NOT_YET_AVAILABLE` or `TEMPORARILY_UNAVAILABLE` after the server's delay;
+`NO_DATA` is a stored empty hour. Older history is `OUTSIDE_WINDOW` with a suggested dataset import.
+See [market data and recovery](docs/market_data.md).
 
 ## Exchanges and instruments
 
@@ -269,6 +284,7 @@ const spot = await qts.getInstruments('binance');
 
 // A specific segment.
 const futures = await qts.getInstruments('binance', 'futures');
+const pools = await qts.getPools('robinhood', 'uniswap-v3');
 
 console.log(spot[0]?.coverage?.tickers); // which dates are actually available
 ```
@@ -277,6 +293,11 @@ The API answers the instrument routes with a HAL envelope (`data` / `meta` / `_l
 unwraps it and hands you the array. That also means `meta.segment` never reaches you, so if you need
 certainty about which segment you are looking at, pass `segment` explicitly instead of relying on
 the default.
+
+Discover `Exchange.venueType`, `segments`, and `liveSegments` first. `getInstruments()` retains its
+CEX instrument array; `getPools()` returns typed DEX pools, whose `id` is the address to put in a
+single-pool kline [live source](docs/live.md#dex-pools). Unknown price, volume, and pool creation
+dates are absent rather than `null`.
 
 ## Strategy validation
 
@@ -393,9 +414,14 @@ already ran against it. A failed PUT leaves nothing to finalize; a `404` from
 at its presigned URL. A `409` means that session already produced a version;
 open a new session instead of reusing its URL.
 
+`importDataset()` also creates datasets from CEX history (`type: 'cex'`, a `cex` source block, and
+an optional cadence) or DEX pool history. Poll `getDatasetImport()` until ready before use. See
+the [dataset guide](docs/datasets.md#importing-market-history) for source fields, range limits,
+cadence defaults, and asynchronous failures.
+
 ## API coverage
 
-Measured against API spec **0.128.14**: all 45 REST operations are represented. The operation-by-
+Measured against API spec **0.128.37**: all 48 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 

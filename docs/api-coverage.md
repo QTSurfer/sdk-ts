@@ -1,27 +1,27 @@
 # API coverage
 
-Measured against OpenAPI **0.128.25**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.37**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
 
 | Operation | SDK surface or decision |
 | --- | --- |
-| `authenticate` | Top-level `authenticate()` exchanges the API key and returns an authenticated session. |
-| `getAccount` | `getAccount()`; `Account.maxSweepCartesian` reports the account's full-grid cap. |
+| `authenticate` | Top-level `authenticate()` exchanges the API key; `403 apikey_without_scopes` raises `QTSAuthError` without retrying or minting a token. |
+| `getAccount` | `getAccount()`; `Account.scopes` reports resource/action grants and `maxSweepCartesian` the full-grid cap. |
 | `getAccountUsage` | `getAccountUsage()`. |
 | `listExchanges` | `getExchanges()`. |
-| `listInstruments` | `getInstruments(exchangeId)` (default segment). |
-| `listSegmentInstruments` | `getInstruments(exchangeId, segment)`. |
-| `downloadTickers` | `downloadTickers(...)` returns a `Blob`. |
-| `downloadKlines` | `downloadKlines(...)` returns a `Blob`. |
+| `listInstruments` | `getInstruments(exchangeId)` for CEX, `getPools(exchangeId)` for DEX; default segment. |
+| `listSegmentInstruments` | `getInstruments(exchangeId, segment)` for CEX, `getPools(exchangeId, protocol)` for DEX. |
+| `downloadTickers` | `downloadTickers(...)` returns a `Blob`; `downloadTickersWithMetadata(...)` also exposes timestamp/provisional headers. |
+| `downloadKlines` | `downloadKlines(...)` returns a `Blob`; `downloadKlinesWithMetadata(...)` also exposes timestamp/provisional headers. |
 | `listStrategies` | `getStrategies({ includeDeleted? })`; deleted rows include `deletedAt`. |
 | `compileStrategy` | `compileStrategy(source)`; also used by `executeBacktest()` and `sweep()`. |
 | `validateStrategy` | `validateStrategy(strategyId)`. |
 | `getStrategy` | `getStrategy(strategyId)`. |
 | `deleteStrategy` | `deleteStrategy(strategyId)`. |
 | `getStrategyCode` | `getStrategyCode(strategyId)`. |
-| `prepareBacktest` | Internal to `executeBacktest()` and `sweep()`; its generated request/job IDs are workflow-owned. |
+| `prepareBacktest` | Internal ticker preparation in `executeBacktest()` and `sweep()`; explicit kline/funding type and cadence remain generated-client operations. |
 | `getPrepareStatus` | Internal polling in `executeBacktest()` and `sweep()`; the temporary job ID is workflow-owned. |
 | `executeSweep` | `sweep()` submits the sweep and returns its lifecycle handle. |
 | `getSweepResult` | `Sweep.result` polls; `Sweep.getResults(view?)` rereads results in another view. |
@@ -38,7 +38,7 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `openDatasetUpload` | `openDatasetUpload(datasetId)` opens a later upload session. |
 | `finalizeDatasetUpload` | `finalizeDatasetUpload(datasetId, uploadId)` queues ingestion. |
 | `getDatasetUpload` | `getDatasetUpload(datasetId, uploadId)` reads ingestion state. |
-| `importDataset` | `importDataset(request)` starts an external-history import. |
+| `importDataset` | `importDataset(request)` starts a CEX history or DEX pool import. |
 | `getDatasetImport` | `getDatasetImport(datasetId, importId)` reads import progress. |
 | `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom` and `sandbox`; previously promoted compilations start in `LIVE` by default, and the response reports the effective warm-up value when present. |
 | `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` when present. |

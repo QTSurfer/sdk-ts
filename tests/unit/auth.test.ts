@@ -34,6 +34,7 @@ function authOk(token = 'jwt-1') {
       token_type: 'Bearer',
       expires_in: 3600,
       tier: 'free',
+      scopes: { exchanges: ['read'], backtests: ['read', 'execute'] },
     },
     error: undefined,
     response: { status: 200 } as Response,
@@ -84,6 +85,7 @@ describe('authenticate() helper', () => {
       'X-API-Key': 'ak_explicit',
     });
     expect(session.token?.access_token).toBe('jwt-from-arg');
+    expect(session.token?.scopes).toEqual({ exchanges: ['read'], backtests: ['read', 'execute'] });
     expect(setConfig.mock.calls.at(-1)?.[0]).toMatchObject({
       baseUrl: 'https://api.qtsurfer.net/v1',
       headers: { Authorization: 'Bearer jwt-from-arg' },
@@ -145,7 +147,10 @@ describe('authenticate() helper', () => {
 
     expect(store.load).toHaveBeenCalledTimes(1);
     expect(store.save).toHaveBeenCalledTimes(1);
-    expect(saved[0]).toMatchObject({ access_token: 'jwt-saved' });
+    expect(saved[0]).toMatchObject({
+      access_token: 'jwt-saved',
+      scopes: { exchanges: ['read'], backtests: ['read', 'execute'] },
+    });
   });
 
   it('seeds from the TokenStore without minting when load() returns a token', async () => {
@@ -168,6 +173,20 @@ describe('authenticate() helper', () => {
     expect(tok).toBe(cached);
     expect(apiAuth).not.toHaveBeenCalled();
   });
+
+  it('migrates a persisted legacy scope list to an empty map without reminting', async () => {
+    const legacy = {
+      access_token: 'jwt-legacy', token_type: 'Bearer', expires_in: 3600,
+      tier: 'pro', scopes: [],
+    };
+    const store = { load: vi.fn().mockReturnValue(legacy), save: vi.fn(), clear: vi.fn() };
+    const { AuthenticatedClient } = await import('../../src/auth/session');
+    const session = new AuthenticatedClient('ak', { store });
+
+    expect(await session.ensureToken()).toEqual({ ...legacy, scopes: {} });
+    expect(store.save).toHaveBeenCalledWith({ ...legacy, scopes: {} });
+    expect(apiAuth).not.toHaveBeenCalled();
+  });
 });
 
 describe('AuthenticatedClient refresh-on-401', () => {
@@ -183,7 +202,7 @@ describe('AuthenticatedClient refresh-on-401', () => {
     apiAuth.mockResolvedValueOnce(authOk('jwt-1'));
     apiAuth.mockResolvedValueOnce(authOk('jwt-2'));
 
-    const blob = new Blob(['LASTRA'], { type: 'application/vnd.lastra' });
+    const blob = new Blob(['LASTRA'], { type: 'application/vnd.qtsurfer.lastra' });
     apiDownloadTickers.mockResolvedValueOnce(http401());
     apiDownloadTickers.mockResolvedValueOnce(ok(blob));
 

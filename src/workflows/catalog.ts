@@ -4,14 +4,17 @@ import {
   listSegmentInstruments as apiListSegmentInstruments,
   type Exchange as ApiExchange,
   type InstrumentDetail as ApiInstrumentDetail,
+  type InstrumentListResponse,
+  type PoolDetail as ApiPoolDetail,
+  type PoolListResponse,
 } from '@qtsurfer/api-client';
 import { QTSError } from '../errors';
 import { requestFailed } from '../internal/requestError';
 
 /**
  * One exchange the platform serves. Alias for api-client's `Exchange`:
- * `id` (what every other call takes as `exchangeId`), `name`, and an
- * optional `description`.
+ * Discover `venueType`, `segments`, and `liveSegments` before selecting a
+ * catalogue or starting a live run. DEX exchanges cannot be backtested directly.
  */
 export type Exchange = ApiExchange;
 
@@ -27,11 +30,24 @@ export type Exchange = ApiExchange;
  */
 export type InstrumentDetail = ApiInstrumentDetail;
 
+/** A DEX pool. Use `id` (its address) to start a live run; signals use `symbol`. */
+export type PoolDetail = ApiPoolDetail;
+
 /**
  * A market segment of an exchange. `'spot'` is the default segment served
  * when {@link QTSurfer.getInstruments} is called without one.
  */
-export type InstrumentSegment = 'spot' | 'futures';
+export type InstrumentSegment = string;
+
+type Catalog = InstrumentListResponse | PoolListResponse;
+
+function isInstrumentCatalog(data: Catalog): data is InstrumentListResponse {
+  return data.meta.venueType === 'cex';
+}
+
+function isPoolCatalog(data: Catalog): data is PoolListResponse {
+  return data.meta.venueType === 'dex';
+}
 
 /**
  * List the exchanges the platform serves.
@@ -65,10 +81,33 @@ export async function listInstruments(
   exchangeId: string,
   segment?: InstrumentSegment,
 ): Promise<InstrumentDetail[]> {
+  const data = await getCatalog(exchangeId, segment);
+  if (!isInstrumentCatalog(data)) {
+    throw new QTSError('Expected a CEX instrument catalogue; use getPools() for a DEX exchange');
+  }
+  return data.data;
+}
+
+/**
+ * Read a DEX pool catalogue, unwrapping its HAL envelope. Omit `segment` to
+ * select the exchange's first protocol. Choose a protocol from `Exchange.segments`.
+ * The list holds up to 50 pools above its liquidity threshold, refreshed hourly;
+ * an unlisted pool can still be used in a live run. Unknown prices, volume, and
+ * creation dates are absent. A CEX response raises `QTSError`.
+ */
+export async function getPools(exchangeId: string, segment?: string): Promise<PoolDetail[]> {
+  const data = await getCatalog(exchangeId, segment);
+  if (!isPoolCatalog(data)) {
+    throw new QTSError('Expected a DEX pool catalogue; use getInstruments() for a CEX exchange');
+  }
+  return data.data;
+}
+
+async function getCatalog(exchangeId: string, segment?: string): Promise<Catalog> {
   const { data, error, response } = segment
     ? await apiListSegmentInstruments({ path: { exchangeId, segment } })
     : await apiListInstruments({ path: { exchangeId } });
   if (error) throw requestFailed('instruments call', error, response?.status);
   if (!data) throw new QTSError('Empty instruments response');
-  return data.data;
+  return data;
 }
