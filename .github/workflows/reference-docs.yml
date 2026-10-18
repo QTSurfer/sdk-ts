@@ -1,0 +1,50 @@
+name: Reference documentation archive
+
+# Attaches the generated TypeDoc of a release to that release, as a tar.gz with its checksum, so the
+# QTSurfer website can publish it. It runs after every published release (see publish.yml) and by
+# hand to build the archive of a release that already exists.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to document
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to document
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check that the release exists
+        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run docs
+      - name: Package the documentation
+        run: |
+          name="sdk-ts-docs-${TAG}"
+          tar -czf "${name}.tar.gz" -C docs/js .
+          sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"
+      - name: Attach it to the release
+        run: |
+          name="sdk-ts-docs-${TAG}"
+          gh release upload "$TAG" "${name}.tar.gz" "${name}.tar.gz.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
