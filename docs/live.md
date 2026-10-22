@@ -239,20 +239,46 @@ retry; a timeout has an unknown outcome, and retrying can deliver a second comma
 have no idempotency key. All request failures are `QTSError`s with the HTTP code on `status`.
 
 Paper trading is opt-in and simulated; it never sends orders to an exchange. Account snapshots and
-equity history are read through these methods. Equity accepts optional `currency`, `sinceMs`,
-`limit` (default 100, maximum 1000), and opaque `cursor`; use the helper to retain page filters.
+equity history are read through these methods. By default, accounts are split by quote currency;
+`paper: { accounts: 'instrument' }` instead gives every selected instrument an isolated account,
+each funded independently with `initialFunding`. Instrument mode requires an explicit instrument
+list, not a wildcard.
 
 ```ts
 const paperRun = await qts.startLive(strategyId, {
   sources: cexSources,
   name: 'ETH paper run',
   relay: true,
-  paper: { initialFunding: 1_000, feeRate: 0.001, percentAmountToLock: 20, output: 'separate' },
+  paper: { initialFunding: 1_000, feeRate: 0.001, percentAmountToLock: 20, output: 'separate', accounts: 'instrument' },
 });
 const snapshot = await qts.getLiveRunPaper(paperRun.runId);
-const equity = await qts.getLiveRunPaperEquity(paperRun.runId, { currency: 'USDT', limit: 100 });
+const equity = await qts.getLiveRunPaperEquity(paperRun.runId, {
+  instrument: 'ETH/USDT', outMode: 'SHORT', differential: true, limit: 100,
+});
 const nextEquity = await qts.getNextLiveRunPaperEquity(paperRun.runId, equity);
 ```
+
+`LivePaperAccount.instrument` identifies an instrument-mode account; a shared currency account
+instead has `instruments`, one result for every instrument that traded or still holds a position.
+Each open position reports its last `markPrice`, `markedAtMs`, and `unrealisedPnl` when a current
+mark is available. The account's `unrealisedPnl` sums those positions, and `totalPnl` adds it to
+`realisedPnl`. These aggregate values are absent while any open position has no current mark.
+Per-instrument results on a shared account describe its realised allocation, not a hypothetical
+account that traded the instrument alone: entries shared capital with the other instruments.
+
+`getLiveRunPaperEquity()` now returns a `LivePaperEquityCurve`, not a page wrapper. Its shape is
+the same as backtest curves: `points` for `outMode: 'ARRAY'`, or parallel `timestamps` and
+`equities` for `SHORT`, plus `meta`, `currency`, `measure`, `gaps`, and a next link when paged.
+With no `instrument`, it reads account equity (`measure: 'equity'`); supply `currency` when a run
+has multiple currency accounts. With `instrument`, it reads that instrument's cumulative
+`realisedPnl` (the default) or `totalPnl` including the open position's unrealised value. For an
+instrument-mode run, the selected instrument identifies its account and the curve is that
+account's equity.
+
+The request also accepts `sinceMs`, `outMode`, `resample`, `differential`, `limit`, and `cursor`.
+Use `sinceMs` for incremental reads; use `limit`/`cursor` for a full-resolution long curve (they
+cannot be combined with `resample`). `getNextLiveRunPaperEquity()` follows the returned next link
+and retains the instrument, measure, currency, and shaping options.
 
 Paper configuration fields are `initialFunding` (default 100), `feeRate` (default 0.001),
 `buyFeeRate`/`sellFeeRate` (override `feeRate`), `feeLeg` (`RECEIVED`, `QUOTE`, or `BASE`),

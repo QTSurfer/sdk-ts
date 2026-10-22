@@ -6,7 +6,7 @@
  */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export { getAccount, getAccountUsage } from './account';
-export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, KeyScopes, ErrorNextCall, ResponseError } from '@qtsurfer/api-client';
+export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, InsufficientScopeError, KeyScopes, ErrorNextCall, ResponseError } from '@qtsurfer/api-client';
 export type {
   DatasetVersion,
   DatasetImportCexRequest,
@@ -43,6 +43,7 @@ export {
   type LiveSignalHistoryEntry,
   type LiveSignalHistoryOptions,
   type LiveSignalHistoryPosition,
+  type LivePaperEquityQuery,
 } from './live';
 export type {
   LiveParamsUpdateResult,
@@ -53,7 +54,9 @@ export type {
   LiveRunWithStream,
   LiveRunCompact,
   LivePaper,
-  LivePaperEquityPage,
+  LivePaperInstrument,
+  LivePaperPosition,
+  LivePaperEquityCurve,
   LiveStreamRevoked,
   LiveStreamUrl,
   LiveListResponse,

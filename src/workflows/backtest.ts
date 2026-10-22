@@ -14,7 +14,6 @@ import {
   type StagePolicy,
 } from '../internal/polling';
 import {
-  TICKER,
   compileStrategySource,
   prepareDataset,
   validatePrepareTarget,
@@ -49,6 +48,8 @@ export interface BacktestRequest {
   strategy: string;
   /** Exchange id, e.g. `binance`, or the reserved value `user` when backtesting against `datasetId`. */
   exchangeId: string;
+  /** Data source to execute. Defaults to `ticker`; use `kline` for a candle dataset. */
+  type?: 'ticker' | 'kline';
   /** Instrument symbol, e.g. `BTC/USDT`. Exactly one of `instrument`/`datasetId` is required. */
   instrument?: string;
   /**
@@ -145,6 +146,7 @@ function prepareData(
   return prepareDataset(
     {
       exchangeId: req.exchangeId,
+      type: req.type ?? 'ticker',
       ...(req.instrument !== undefined ? { instrument: req.instrument } : {}),
       ...(req.datasetId !== undefined ? { datasetId: req.datasetId } : {}),
       ...(req.datasetVersionId !== undefined ? { datasetVersionId: req.datasetVersionId } : {}),
@@ -175,8 +177,8 @@ async function executeStrategy(
   policy: StagePolicy,
   opts: BacktestOptions,
 ): Promise<BacktestResult> {
-  const { data, error } = await executeBacktest({
-    path: { exchangeId: req.exchangeId, type: TICKER },
+  const { data, error, response } = await executeBacktest({
+    path: { exchangeId: req.exchangeId, type: req.type ?? 'ticker' },
     body: {
       prepareJobId,
       strategyId,
@@ -187,7 +189,7 @@ async function executeStrategy(
     },
     ...(opts.signal ? { signal: opts.signal } : {}),
   });
-  if (error) throw new QTSExecutionError('Execute submission failed', error);
+  if (error) throw new QTSExecutionError('Execute submission failed', error, response?.status);
   if (!data?.jobId) throw new QTSExecutionError('Missing jobId in execute response');
 
   const executeJobId = data.jobId;
@@ -197,10 +199,10 @@ async function executeStrategy(
       policy,
       async ({ signal }) => {
         const res = await getBacktestResult({
-          path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
+          path: { exchangeId: req.exchangeId, type: req.type ?? 'ticker', jobId: executeJobId },
           signal,
         });
-        if (res.error) throw new QTSExecutionError('Execution result request failed', res.error);
+        if (res.error) throw new QTSExecutionError('Execution result request failed', res.error, res.response?.status);
         if (!res.data) throw new QTSExecutionError('Empty execution result response');
         // A 202 carries an empty body: no `state`, so the spread yields an undefined status and
         // the retry predicate keeps polling. That is the intended handling, not a coincidence —
@@ -220,7 +222,7 @@ async function executeStrategy(
 
     const execNorm = normalizeStatus(finalResult.status);
     if (execNorm === 'failed') {
-      throw new QTSExecutionError(finalResult.statusDetail ?? 'Execution failed');
+      throw new QTSExecutionError(finalResult.statusDetail ?? 'Execution failed', finalResult);
     }
     if (execNorm === 'aborted') {
       throw new QTSCanceledError('Execution aborted');
@@ -229,7 +231,7 @@ async function executeStrategy(
   } catch (err) {
     if (err instanceof QTSCanceledError) {
       await cancelBacktest({
-        path: { exchangeId: req.exchangeId, type: TICKER, jobId: executeJobId },
+        path: { exchangeId: req.exchangeId, type: req.type ?? 'ticker', jobId: executeJobId },
       }).catch(() => undefined);
     }
     throw err;

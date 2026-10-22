@@ -28,8 +28,16 @@ reconciling a local catalog; deleted entries carry `deletedAt`. Listing them doe
 or make them available to new backtests.
 
 Poll until the upload state is ready or failed. Only a ready version is usable. The returned version
-contains the discovered range, cadence, row count, and gap information. The CSV format and validation
-rules are defined in the API's [dataset reference](https://www.qtsurfer.com/docs/developers/api/datasets).
+contains the discovered range, cadence, row count, and gap information. Once ready, `Dataset.type`
+is inferred from the rows: a file with OHLC on every row and no order book is `klines`; rows carrying
+book fields, or bare prices, are `ticker`. The type may therefore differ from the initial `ticker`
+label returned when the empty upload dataset is created.
+
+Use a candle dataset with `type: 'kline'` in `executeBacktest()` or `sweep()`; the workflow reads
+the candles as bars at the version's own cadence. `type: 'ticker'` is the SDK default and accepts
+either ticker or candle datasets. A kline workflow over a dataset that is not `klines` fails with
+`400`. See [backtesting](backtesting.md#backtests-and-parameter-sweeps) for runnable examples. The
+CSV format and validation rules are defined in the API's [dataset reference](https://www.qtsurfer.com/docs/developers/api/datasets).
 
 For another version, or to recover a lost creation response, open a session and repeat the same
 transfer/finalize flow. Repeating `openDatasetUpload` while a session is open is safe; a finalized
@@ -74,7 +82,7 @@ Imports count towards the account's dataset and storage limits; `429` reports ex
 
 For `type: 'cex'`, the `cex` block is required: choose a centralized `exchange` from
 `getExchanges()`, `segment: 'spot'` (the only supported import segment), and `dataType: 'ticker'`
-or `'klines'`. That data type becomes the dataset's type. DEX exchange ids are refused here.
+or `'klines'`. That data type becomes the ready dataset's `type`. DEX exchange ids are refused here.
 Optional `cadence` accepts `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`,
 `12h`, `1d`, `1w`, or `1q` for either data type. Omit it to use the finest cadence held across
 the whole range: when available cadence changes within the window, the result consistently uses

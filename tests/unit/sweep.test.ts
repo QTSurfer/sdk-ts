@@ -184,6 +184,27 @@ describe('sweep workflow', () => {
     expect(events.find((e) => e.coverageRatio !== undefined)?.coverageRatio).toBe(0.98);
   });
 
+  it('uses the kline routes consistently when sweeping a candle dataset', async () => {
+    getSweepResult.mockResolvedValue(ok(completed()));
+
+    const { sweep } = await import('../../src/workflows/sweep');
+    const handle = await sweep({
+      ...REQ, exchangeId: 'user', datasetId: 'ds_candles', instrument: undefined, type: 'kline',
+    }, FAST);
+    await handle.result;
+
+    expect(prepareBacktest).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline' },
+      body: { datasetId: 'ds_candles', from: REQ.from, to: REQ.to },
+    }));
+    expect(executeSweep).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline', requestId: 'prep-1' },
+    }));
+    expect(getSweepResult).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline', requestId: 'prep-1', sweepId: 'swp-1' },
+    }));
+  });
+
   it('answers the seed and the dedupe question from acceptance, unmodified', async () => {
     // The acceptance response is stored exactly as the server sent it — the handle's own
     // requestId is the value the workflow prepared with, never a write-back onto the model.

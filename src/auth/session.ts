@@ -88,13 +88,14 @@ import {
   updateLiveParams,
   type LiveConnectionOptions,
   type LiveCommandRequest,
+  type LivePaperEquityQuery,
 } from '../live';
 import type {
   Account,
   AccountUsage,
   LiveListResponse,
   LivePaper,
-  LivePaperEquityPage,
+  LivePaperEquityCurve,
   LiveParamsUpdateResult,
   LiveCommandResult,
   LiveRun,
@@ -256,10 +257,10 @@ export class AuthenticatedClient {
   getLiveRunPaper(runId: string): Promise<LivePaper> {
     return this.withRefreshOn401(() => getLiveRunPaper(runId));
   }
-  getLiveRunPaperEquity(runId: string, query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number }): Promise<LivePaperEquityPage> {
+  getLiveRunPaperEquity(runId: string, query?: LivePaperEquityQuery): Promise<LivePaperEquityCurve> {
     return this.withRefreshOn401(() => getLiveRunPaperEquity(runId, query));
   }
-  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityPage): Promise<LivePaperEquityPage | undefined> {
+  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityCurve): Promise<LivePaperEquityCurve | undefined> {
     return this.withRefreshOn401(() => getNextLiveRunPaperEquity(runId, page));
   }
   updateLive(runId: string, request: UpdateLiveRequest): Promise<LiveRunCompact> {

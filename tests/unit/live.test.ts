@@ -5,6 +5,7 @@ const apiSendLiveCommand = vi.fn();
 const apiStartLive = vi.fn();
 const apiGetLive = vi.fn();
 const apiGetLiveRun = vi.fn();
+const apiGetLiveRunPaperEquity = vi.fn();
 const apiRotateLiveStream = vi.fn();
 const apiRevokeLiveStream = vi.fn();
 
@@ -13,6 +14,7 @@ vi.mock('@qtsurfer/api-client', () => ({
   startLive: apiStartLive,
   getLive: apiGetLive,
   getLiveRun: apiGetLiveRun,
+  getLiveRunPaperEquity: apiGetLiveRunPaperEquity,
   rotateLiveStream: apiRotateLiveStream,
   revokeLiveStream: apiRevokeLiveStream,
 }));
@@ -25,6 +27,7 @@ describe('live commands', () => {
     apiStartLive.mockReset();
     apiGetLive.mockReset();
     apiGetLiveRun.mockReset();
+    apiGetLiveRunPaperEquity.mockReset();
     apiRotateLiveStream.mockReset();
     apiRevokeLiveStream.mockReset();
   });
@@ -116,6 +119,35 @@ describe('live commands', () => {
     await expect(sendLiveCommand('run-1', { command: 'flatten' })).rejects.toMatchObject({
       status: 503,
       message: expect.stringContaining('command was not sent'),
+    });
+  });
+
+  it('returns paper equity curves and retains every query option while paging', async () => {
+    const curve = {
+      currency: 'USDT', instrument: 'BTC/USDT', measure: 'totalPnl', gaps: [],
+      meta: { outMode: 'ARRAY' }, points: [],
+      _links: { next: { href: '/v1/live/run-1/paper/equity?cursor=next&instrument=BTC%2FUSDT&measure=totalPnl&outMode=SHORT&differential=true&limit=100' } },
+    };
+    apiGetLiveRunPaperEquity.mockResolvedValueOnce(ok(curve, 200));
+    apiGetLiveRunPaperEquity.mockResolvedValueOnce(ok({ ...curve, _links: {} }, 200));
+    const { getLiveRunPaperEquity, getNextLiveRunPaperEquity } = await import('../../src/live');
+
+    const first = await getLiveRunPaperEquity('run-1', {
+      instrument: 'BTC/USDT', measure: 'totalPnl', outMode: 'SHORT', differential: true, limit: 100,
+    });
+    expect(first).toEqual(curve);
+    expect(apiGetLiveRunPaperEquity).toHaveBeenNthCalledWith(1, {
+      path: { runId: 'run-1' },
+      query: { instrument: 'BTC/USDT', measure: 'totalPnl', outMode: 'SHORT', differential: true, limit: 100 },
+    });
+
+    await getNextLiveRunPaperEquity('run-1', first);
+    expect(apiGetLiveRunPaperEquity).toHaveBeenNthCalledWith(2, {
+      path: { runId: 'run-1' },
+      query: {
+        cursor: 'next', instrument: 'BTC/USDT', measure: 'totalPnl', outMode: 'SHORT',
+        differential: true, limit: 100,
+      },
     });
   });
 });

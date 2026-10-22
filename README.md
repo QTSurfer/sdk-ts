@@ -87,10 +87,11 @@ const qts = await authenticate(undefined, { store: browserStore });
 transports, or a Node-`fetch` polyfill in legacy runtimes.
 
 Token `scopes` and `(await qts.getAccount()).scopes` are resource-to-actions maps such as
-`{ backtests: ['read', 'execute'] }`, with `{}` for no grants. They are currently reported without
-enforcement on individual operations. Resources without actions are omitted. A deployment can
-require at least one scope to mint a token: `403 apikey_without_scopes` raises `QTSAuthError`
-without automatic retries. Stored legacy `scopes: []` values are migrated to `{}`;
+`{ backtests: ['read', 'execute'] }`, with `{}` for no grants. Protected operations enforce these
+grants: a `403 insufficient_scope` raises an SDK error with `code` and the missing `required`
+scope. Change the key's grants and refresh the JWT before retrying. A deployment can also require
+at least one scope to mint a token: `403 apikey_without_scopes` raises `QTSAuthError` without
+automatic retries. Stored legacy `scopes: []` values are migrated to `{}`;
 see [authentication](docs/auth.md).
 
 ### Lower-level: hand-managed JWT
@@ -112,11 +113,14 @@ const qts = new QTSurfer({
 Orchestrates the full four-step workflow that the raw API exposes:
 
 1. **Compile** the strategy (`POST /strategy`), which answers synchronously with the `strategyId`.
-2. **Prepare** the data range (`POST /backtest/{exchange}/ticker/prepare`) and poll until `Completed`.
-3. **Execute** the backtest (`POST /backtest/{exchange}/ticker/execute`) and poll `GET /backtest/.../execute/{jobId}` until `Completed`.
+2. **Prepare** the data range (`POST /backtest/{exchange}/{type}/prepare`) and poll until `Completed`.
+3. **Execute** the backtest (`POST /backtest/{exchange}/{type}/execute`) and poll its result until `Completed`.
 4. Return the `ResultMap` (`pnlTotal`, `totalTrades`, `sharpeRatio`, `signalsUrl`, …).
 
 Polling uses exponential backoff (`intervalMs * 1.5`, capped at `maxIntervalMs`) with per-stage timeout.
+The route type defaults to `ticker`; set `type: 'kline'` to run a candle strategy against a ready
+dataset whose `type` is `klines`. The same option is available to `sweep()`; see the
+[backtesting guide](docs/backtesting.md#backtests-and-parameter-sweeps).
 
 Progress is emitted on every stage transition and after each poll whose `size > 0`.
 
@@ -407,7 +411,10 @@ await qts.uploadDatasetFile(next, correctedCsvText);
 await qts.finalizeDatasetUpload(upload.datasetId, next.uploadId);
 ```
 
-`getDatasets()`, `getDataset(id)` and `deleteDataset(id)` manage dataset metadata.
+`getDatasets()`, `getDataset(id)` and `deleteDataset(id)` manage dataset metadata. When an
+uploaded version becomes ready, its `type` is inferred from the rows: candle-shaped data is
+`klines`; ticker-shaped data is `ticker`. CEX imports use the requested `dataType`, and DEX candle
+imports are `klines`.
 Deletion hides the dataset from future use but does not change backtests that
 already ran against it. A failed PUT leaves nothing to finalize; a `404` from
 `finalizeDatasetUpload()` means the upload session is unknown or has no object
@@ -421,13 +428,18 @@ cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.37**: all 48 REST operations are represented. The operation-by-
+Measured against API spec **0.128.46**: all 48 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 
 ## Error hierarchy
 
 All SDK errors extend `QTSError` so you can catch them generically or match by subclass.
+When the server returns structured error details, `QTSError` exposes `code`, `required` (for
+`insufficient_scope`), `retryable`, and `status` where the call site has the response status.
+Failed execution errors also expose `retryable` from the terminal `JobState`; a `true` value means
+the same request may succeed after a transient data fault, not that the SDK should resubmit it
+automatically.
 
 ```ts
 import {

@@ -45,15 +45,31 @@ It does not exchange API keys or refresh the supplied token.
 `{ backtests: ['read', 'write', 'execute'], exchanges: ['read'] }`. A key with no grants reports
 `{}`. A scope is one resource and one action; a resource with zero actions is omitted rather
 than reported with `[]`. `AuthTokenResponse.scopes` is optional for older responses;
-`getAccount().scopes` is required and reports the same map for that key. Individual operations
-currently report grants without enforcing missing ones; token issuance can require at least
-one scope as described above. The SDK does not enforce scopes locally.
+`getAccount().scopes` is required and reports the same map for that key. Protected operations
+enforce those grants. A valid token missing the operation's scope gets `403 insufficient_scope`
+with the required `resource:action`; because the JWT preserves the key's grants from issuance,
+edit the key and refresh or re-authenticate before trying again. The SDK exposes this as
+`QTSError.code` and `QTSError.required` and never retries it automatically.
 
 ```ts
 const scopes = qts.token?.scopes ?? {};
 console.log(scopes.backtests?.includes('execute') ?? false);
 const account = await qts.getAccount();
 console.log(account.scopes);
+```
+
+Handle a missing grant as a permissions change, not as a transient failure:
+
+```ts
+import { QTSError } from '@qtsurfer/sdk';
+
+try {
+  await qts.getDatasets();
+} catch (error) {
+  if (error instanceof QTSError && error.code === 'insufficient_scope') {
+    console.error(`Grant ${error.required} to this API key, then refresh the session.`);
+  } else throw error;
+}
 ```
 
 Resource names are `exchanges`, `market_data`, `strategies`, `backtests`, `datasets`, and `live`.

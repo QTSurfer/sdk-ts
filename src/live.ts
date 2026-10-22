@@ -24,7 +24,8 @@ import {
   type LiveSignal,
   type LiveSignalPage,
   type LivePaper,
-  type LivePaperEquityPage,
+  type LivePaperEquityCurve,
+  type GetLiveRunPaperEquityData,
   type LiveStreamRevoked,
   type LiveStreamUrl,
   type LiveListResponse,
@@ -51,6 +52,9 @@ export interface LiveConnectionOptions {
 
 /** Thrown when a recorded-signal cursor fell behind the server's retention window. */
 export class LiveSignalCursorExpiredError extends QTSError {}
+
+/** Query options for reading one paper account or instrument curve. */
+export type LivePaperEquityQuery = NonNullable<GetLiveRunPaperEquityData['query']>;
 
 /** Command text and optional strategy-defined values delivered to each execution. */
 export interface LiveCommandRequest {
@@ -123,22 +127,22 @@ export async function getLiveRunPaper(runId: string): Promise<LivePaper> {
   return data;
 }
 
-/** Read paginated paper-trading equity points for a run. */
+/** Read one paper account's equity, or an instrument's realised/total PnL curve. */
 export async function getLiveRunPaperEquity(
   runId: string,
-  query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number },
-): Promise<LivePaperEquityPage> {
+  query?: LivePaperEquityQuery,
+): Promise<LivePaperEquityCurve> {
   const { data, error, response } = await apiGetLiveRunPaperEquity({ path: { runId }, query });
   if (error) throw requestFailed('get live paper equity call', error, response?.status);
   if (!data) throw new QTSError('Empty live-paper-equity response');
   return data;
 }
 
-/** Continue a paper-equity page while retaining its currency and size filters. */
+/** Continue a paper curve page while retaining every filter and output option. */
 export async function getNextLiveRunPaperEquity(
   runId: string,
-  page: LivePaperEquityPage,
-): Promise<LivePaperEquityPage | undefined> {
+  page: LivePaperEquityCurve,
+): Promise<LivePaperEquityCurve | undefined> {
   const href = page._links?.next?.href;
   if (!href) return undefined;
   const params = new URL(href, 'https://api.qtsurfer.invalid').searchParams;
@@ -147,8 +151,13 @@ export async function getNextLiveRunPaperEquity(
   return getLiveRunPaperEquity(runId, {
     cursor,
     ...(params.has('currency') ? { currency: params.get('currency')! } : {}),
-    ...(params.has('limit') ? { limit: Number(params.get('limit')) } : {}),
+    ...(params.has('instrument') ? { instrument: params.get('instrument')! } : {}),
+    ...(params.has('measure') ? { measure: params.get('measure') as LivePaperEquityQuery['measure'] } : {}),
     ...(params.has('sinceMs') ? { sinceMs: Number(params.get('sinceMs')) } : {}),
+    ...(params.has('outMode') ? { outMode: params.get('outMode') as LivePaperEquityQuery['outMode'] } : {}),
+    ...(params.has('resample') ? { resample: Number(params.get('resample')) } : {}),
+    ...(params.has('differential') ? { differential: params.get('differential') === 'true' } : {}),
+    ...(params.has('limit') ? { limit: Number(params.get('limit')) } : {}),
   });
 }
 

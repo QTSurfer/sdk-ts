@@ -154,4 +154,15 @@ describe('QTSurfer.listInstruments', () => {
       message: expect.stringContaining('no such exchange'),
     });
   });
+
+  it('exposes the scope required by a protected operation', async () => {
+    apiListExchanges.mockResolvedValue(err({
+      code: 'insufficient_scope', message: 'Missing scope', required: 'market_data:read',
+    }, 403));
+
+    const qts = await client();
+    await expect(qts.getExchanges()).rejects.toMatchObject({
+      status: 403, code: 'insufficient_scope', required: 'market_data:read',
+    });
+  });
 });

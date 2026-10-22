@@ -81,6 +81,7 @@ import {
   updateLiveParams,
   type LiveConnectionOptions,
   type LiveCommandRequest,
+  type LivePaperEquityQuery,
 } from './live';
 import { getAccount, getAccountUsage } from './account';
 import type { Account, AccountUsage } from '@qtsurfer/api-client';
@@ -94,7 +95,7 @@ import type {
   LiveSignal,
   LiveSignalPage,
   LivePaper,
-  LivePaperEquityPage,
+  LivePaperEquityCurve,
   LiveStreamRevoked,
   LiveStreamUrl,
   LiveListResponse,
@@ -208,12 +209,12 @@ export class QTSurfer {
 
   getLiveRunPaperEquity(
     runId: string,
-    query?: { cursor?: string; currency?: string; limit?: number; sinceMs?: number },
-  ): Promise<LivePaperEquityPage> {
+    query?: LivePaperEquityQuery,
+  ): Promise<LivePaperEquityCurve> {
     return getLiveRunPaperEquity(runId, query);
   }
 
-  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityPage): Promise<LivePaperEquityPage | undefined> {
+  getNextLiveRunPaperEquity(runId: string, page: LivePaperEquityCurve): Promise<LivePaperEquityCurve | undefined> {
     return getNextLiveRunPaperEquity(runId, page);
   }
 

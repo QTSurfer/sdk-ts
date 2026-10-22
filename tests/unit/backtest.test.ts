@@ -95,6 +95,31 @@ describe('backtest workflow', () => {
     expect(stages).toContain('executing');
   });
 
+  it('uses the kline route consistently for candle datasets', async () => {
+    compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    getPrepareStatus.mockResolvedValue(ok({ status: 'Completed', size: 1, completed: 1 }));
+    executeBacktest.mockResolvedValue(ok({ jobId: 'exec-1' }));
+    getBacktestResult.mockResolvedValue(ok({
+      state: { status: 'Completed', size: 1, completed: 1 },
+      results: { strategyId: 'strategy-abc', instrument: 'BTC/USDT' },
+    }));
+
+    const { backtest } = await import('../../src/workflows/backtest');
+    await backtest({ ...REQ, exchangeId: 'user', datasetId: 'ds_candles', instrument: undefined, type: 'kline' }, { pollIntervalMs: 1 });
+
+    expect(prepareBacktest).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline' },
+      body: { datasetId: 'ds_candles', from: REQ.from, to: REQ.to },
+    }));
+    expect(executeBacktest).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline' },
+    }));
+    expect(getBacktestResult).toHaveBeenCalledWith(expect.objectContaining({
+      path: { exchangeId: 'user', type: 'kline', jobId: 'exec-1' },
+    }));
+  });
+
   it('forwards scalar strategy-property values to the execution', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
     prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
@@ -193,6 +218,7 @@ describe('backtest workflow', () => {
           size: 100,
           completed: 50,
           statusDetail: 'worker crashed',
+          retryable: true,
         },
         results: { strategyId: 'strategy-sync', instrument: 'BTC/USDT' },
       }),
@@ -201,9 +227,9 @@ describe('backtest workflow', () => {
     const { backtest } = await import('../../src/workflows/backtest');
     const { QTSExecutionError } = await import('../../src/errors');
 
-    await expect(backtest(REQ, { pollIntervalMs: 1 })).rejects.toBeInstanceOf(
-      QTSExecutionError,
-    );
+    await expect(backtest(REQ, { pollIntervalMs: 1 })).rejects.toMatchObject({
+      name: 'QTSExecutionError', retryable: true,
+    });
     // Failed != canceled, so cancelBacktest is NOT invoked
     expect(cancelBacktest).not.toHaveBeenCalled();
   });

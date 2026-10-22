@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.25.0
+
+### Minor Changes
+
+- Expose missing scopes and retryability on `QTSError`, and let `executeBacktest()` and `sweep()` run candle datasets with `type: 'kline'`. Paper trading now supports isolated per-instrument accounts and exposes mark-to-market position metrics; `getLiveRunPaperEquity()` returns a shaped `LivePaperEquityCurve` with per-instrument realised/total-PnL queries. This replaces the former page-shaped return type; callers should read `points` or `timestamps`/`equities` and follow `_links.next` with `getNextLiveRunPaperEquity()`.
+
 ## 0.24.0
 
 ### Minor Changes

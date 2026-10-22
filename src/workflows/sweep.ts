@@ -30,7 +30,6 @@ import {
   type StagePolicy,
 } from '../internal/polling';
 import {
-  TICKER,
   compileStrategySource,
   prepareDataset,
   validatePrepareTarget,
@@ -320,6 +319,8 @@ export interface SweepRequest {
   strategy: string;
   /** Exchange id, e.g. `binance`, or the reserved value `user` when sweeping against `datasetId`. */
   exchangeId: string;
+  /** Data source to execute. Defaults to `ticker`; use `kline` for a candle dataset. */
+  type?: 'ticker' | 'kline';
   /** Instrument symbol, e.g. `BTC/USDT`. Exactly one of `instrument`/`datasetId` is required. */
   instrument?: string;
   /**
@@ -675,12 +676,12 @@ export async function sweep(req: SweepRequest, opts: SweepOptions = {}): Promise
   const requestId = await prepareData(req, policy, opts);
 
   opts.onProgress?.({ stage: 'executing' });
-  const { data, error } = await executeSweep({
-    path: { exchangeId: req.exchangeId, type: TICKER, requestId },
+  const { data, error, response } = await executeSweep({
+    path: { exchangeId: req.exchangeId, type: req.type ?? 'ticker', requestId },
     body: buildSweepBody(req, strategyId),
     ...(opts.signal ? { signal: opts.signal } : {}),
   });
-  if (error) throw new QTSExecutionError('Sweep submission failed', error);
+  if (error) throw new QTSExecutionError('Sweep submission failed', error, response?.status);
   if (!data?.sweepId) throw new QTSExecutionError('Missing sweepId in executeSweep response');
 
   // The handle addresses the sweep with the requestId of the dataset just prepared — the value
@@ -732,6 +733,7 @@ function prepareData(
   return prepareDataset(
     {
       exchangeId: req.exchangeId,
+      type: req.type ?? 'ticker',
       ...(req.instrument !== undefined ? { instrument: req.instrument } : {}),
       ...(req.datasetId !== undefined ? { datasetId: req.datasetId } : {}),
       ...(req.datasetVersionId !== undefined ? { datasetVersionId: req.datasetVersionId } : {}),
@@ -783,7 +785,7 @@ function createHandle(
   strategyId: string,
 ): Sweep {
   const sweepId = accepted.sweepId;
-  const path = { exchangeId: req.exchangeId, type: TICKER, requestId, sweepId };
+  const path = { exchangeId: req.exchangeId, type: req.type ?? 'ticker', requestId, sweepId };
   let state: SweepState = 'executing';
 
   const withQuery = viewQuery(opts);
@@ -797,7 +799,7 @@ function createHandle(
         policy,
         async ({ signal }) => {
           const res = await getSweepResult({ path, ...withQuery, signal });
-          if (res.error) throw new QTSExecutionError('Sweep result request failed', res.error);
+          if (res.error) throw new QTSExecutionError('Sweep result request failed', res.error, res.response?.status);
           if (!res.data) throw new QTSExecutionError('Empty sweep result response');
           // Cancellation is acknowledged before in-flight shards have drained. Keep polling
           // until pendingShards reaches zero so the resolved leaderboard is complete.

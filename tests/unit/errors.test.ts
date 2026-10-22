@@ -36,4 +36,17 @@ describe('error hierarchy', () => {
     expect(err).not.toBeInstanceOf(QTSExecutionError);
     expect(err).not.toBeInstanceOf(QTSStrategyCompileError);
   });
+
+  it('preserves structured authorization and retry guidance from API errors and job states', () => {
+    const denied = new QTSError('Forbidden', {
+      code: 'insufficient_scope', message: 'Missing scope', required: 'datasets:read',
+    }, 403);
+    expect(denied).toMatchObject({ code: 'insufficient_scope', required: 'datasets:read', status: 403 });
+
+    const transient = new QTSError('Temporary failure', { reason: 'TEMPORARILY_UNAVAILABLE', retryable: true });
+    expect(transient).toMatchObject({ reason: 'TEMPORARILY_UNAVAILABLE', retryable: true });
+
+    const job = new QTSExecutionError('Execution failed', { retryable: true });
+    expect(job.retryable).toBe(true);
+  });
 });

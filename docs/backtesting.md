@@ -11,14 +11,31 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 `executeBacktest` owns compile, prepare, execution, and polling. It returns the completed result, while
 `onProgress`, `AbortSignal`, and timeout options make caller policy explicit.
 
-The high-level `executeBacktest()` and `sweep()` workflows prepare `ticker` data at the platform's
-default cadence; they do not expose source type or cadence selection. For explicit kline or funding
-preparation, use `prepareBacktest` from `@qtsurfer/api-client`. Managed-exchange kline preparation
-accepts the same fifteen labels as ticker/funding: `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`,
-`1h`, `2h`, `4h`, `8h`, `12h`, `1d`, `1w`, `1q`; omitted, cadence defaults to `1s`. See the
-[API preparation guide](https://github.com/QTSurfer/qtsurfer-api/blob/main/docs/backtest_execute.md#preparing-data)
-for dataset resampling rules. A DEX venue id cannot be prepared directly; import the pool's
-history as a dataset first.
+The high-level `executeBacktest()` and `sweep()` workflows use `ticker` by default. Set `type: 'kline'`
+to run a candle strategy against a dataset whose ready version has `type: 'klines'`; the candles
+are consumed as bars at the dataset version's own cadence. Ticker runs accept either dataset type.
+The `type` passed to the SDK selects the prepare, execute, and polling routes consistently.
+
+```ts
+const candleResult = await qts.executeBacktest({
+  strategy: candleStrategy, exchangeId: 'user', datasetId: 'ds_candles', type: 'kline',
+  from: '2026-04-13T00:00:00Z', to: '2026-04-14T00:00:00Z',
+});
+
+const candleSweep = await qts.sweep({
+  strategy: candleStrategy, exchangeId: 'user', datasetId: 'ds_candles', type: 'kline',
+  from: '2026-04-13T00:00:00Z', to: '2026-04-14T00:00:00Z',
+  params: { emaPeriod: { from: 8, to: 24, step: 2 } },
+});
+```
+
+A `kline` prepare over a dataset that is not `klines` fails with `400`; check the ready dataset's
+`type` before submitting. Uploads are classified from their rows once ingested, so a candle CSV
+becomes `klines`. Managed-exchange kline preparation accepts the same fifteen cadence labels as
+ticker/funding: `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`, `12h`, `1d`,
+`1w`, `1q`; omitted, cadence defaults to `1s`. The dataset's discovered cadence and resampling
+rules are in the [API preparation guide](https://github.com/QTSurfer/qtsurfer-api/blob/main/docs/backtest_execute.md#preparing-data).
+A DEX venue id cannot be prepared directly; import the pool's history as a dataset first.
 
 ```ts
 const result = await qts.executeBacktest({
@@ -35,7 +52,7 @@ describes the representation actually returned, which may differ from the reques
 ```ts
 const result = await qts.executeBacktest({
   strategy: source, exchangeId: 'binance', instrument: 'BTC/USDT', from, to,
-  equityCurve: { resample: 500, differential: true, outMode: 'short' },
+  equityCurve: { resample: 500, differential: true, outMode: 'SHORT' },
 });
 const curve = result.equityCurve;
 ```

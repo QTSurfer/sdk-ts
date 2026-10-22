@@ -35,9 +35,10 @@ export async function compileStrategySource(
       throw new QTSStrategyCompileError(
         'Strategy was not compiled, too many compilations in flight; retry later',
         error,
+        response?.status,
       );
     }
-    throw new QTSStrategyCompileError('Strategy compilation failed', error);
+    throw new QTSStrategyCompileError('Strategy compilation failed', error, response?.status);
   }
   if (!data?.strategyId) {
     throw new QTSStrategyCompileError('Compile response missing strategyId');
@@ -54,6 +55,7 @@ export async function compileStrategySource(
  */
 export interface PrepareTarget {
   exchangeId: string;
+  type?: 'ticker' | 'kline';
   instrument?: string;
   /** Id of a previously uploaded dataset, in place of `instrument`. */
   datasetId?: string;
@@ -118,8 +120,8 @@ export async function prepareDataset(
   policy: StagePolicy,
   run: PrepareRun = {},
 ): Promise<string> {
-  const { data, error } = await prepareBacktest({
-    path: { exchangeId: target.exchangeId, type: TICKER },
+  const { data, error, response } = await prepareBacktest({
+    path: { exchangeId: target.exchangeId, type: target.type ?? TICKER },
     body: {
       ...(target.instrument !== undefined ? { instrument: target.instrument } : {}),
       ...(target.datasetId !== undefined ? { datasetId: target.datasetId } : {}),
@@ -131,7 +133,7 @@ export async function prepareDataset(
     },
     ...(run.signal ? { signal: run.signal } : {}),
   });
-  if (error) throw new QTSPreparationError('Prepare submission failed', error);
+  if (error) throw new QTSPreparationError('Prepare submission failed', error, response?.status);
   if (!data?.jobId) throw new QTSPreparationError('Missing jobId in prepare response');
 
   const prepareJobId = data.jobId;
@@ -139,10 +141,10 @@ export async function prepareDataset(
     policy,
     async ({ signal }) => {
       const res = await getPrepareStatus({
-        path: { exchangeId: target.exchangeId, type: TICKER, jobId: prepareJobId },
+        path: { exchangeId: target.exchangeId, type: target.type ?? TICKER, jobId: prepareJobId },
         signal,
       });
-      if (res.error) throw new QTSPreparationError('Preparation status request failed', res.error);
+      if (res.error) throw new QTSPreparationError('Preparation status request failed', res.error, res.response?.status);
       if (!res.data) throw new QTSPreparationError('Empty preparation status response');
       return res.data;
     },
@@ -157,7 +159,7 @@ export async function prepareDataset(
 
   const prepNorm = normalizeStatus(state.status);
   if (prepNorm === 'failed') {
-    throw new QTSPreparationError(state.statusDetail ?? 'Data preparation failed');
+    throw new QTSPreparationError(state.statusDetail ?? 'Data preparation failed', state);
   }
   if (prepNorm === 'aborted') {
     throw new QTSCanceledError('Data preparation aborted');

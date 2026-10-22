@@ -26,8 +26,10 @@ sweep options.
 
 `scopes` is a required resource-to-actions map, with `{}` for a key with none. It is the same
 map returned with the token for that key. A resource is present only with at least one action.
-Individual operations currently report these grants without enforcing missing scopes;
-token issuance can reject a key with none. See [authentication](auth.md#resource-and-action-scopes).
+Protected operations enforce these grants and return `403 insufficient_scope` when the token
+lacks a required `resource:action`; the SDK error exposes it as `code` and `required`. Change the
+key's grants and refresh the token before retrying. Token issuance can also reject a key with no
+scopes. See [authentication](auth.md#resource-and-action-scopes).
 
 ## Read current usage
 

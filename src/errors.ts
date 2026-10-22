@@ -16,6 +16,12 @@ export class QTSError extends Error {
   readonly reason?: string;
   /** Suggested recovery request; caller-specific fields such as a name may be absent. */
   readonly next?: ErrorNextCall;
+  /** Machine-readable server error code, when the response has one. */
+  readonly code?: string;
+  /** Scope required by a `403 insufficient_scope` response. */
+  readonly required?: string;
+  /** Whether the API says the same request may succeed if retried. */
+  readonly retryable?: boolean;
   constructor(message: string, readonly cause?: unknown, status?: number) {
     super(message);
     this.name = 'QTSError';
@@ -23,6 +29,9 @@ export class QTSError extends Error {
     if (cause && typeof cause === 'object') {
       if ('reason' in cause && typeof cause.reason === 'string') this.reason = cause.reason;
       if ('next' in cause && isNextCall(cause.next)) this.next = cause.next;
+      if ('code' in cause && typeof cause.code === 'string') this.code = cause.code;
+      if ('required' in cause && typeof cause.required === 'string') this.required = cause.required;
+      if ('retryable' in cause && typeof cause.retryable === 'boolean') this.retryable = cause.retryable;
     }
   }
 }
@@ -34,8 +43,8 @@ export class QTSError extends Error {
  * not compile, so retrying with the same input fails again.
  */
 export class QTSStrategyCompileError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSStrategyCompileError';
   }
 }
@@ -46,8 +55,8 @@ export class QTSStrategyCompileError extends QTSError {
  * (e.g. no data available for the requested range) all surface here.
  */
 export class QTSPreparationError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSPreparationError';
   }
 }
@@ -58,8 +67,8 @@ export class QTSPreparationError extends QTSError {
  * here.
  */
 export class QTSExecutionError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSExecutionError';
   }
 }
@@ -71,8 +80,8 @@ export class QTSExecutionError extends QTSError {
  * `timeoutMs`.
  */
 export class QTSTimeoutError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSTimeoutError';
   }
 }
@@ -84,8 +93,8 @@ export class QTSTimeoutError extends QTSError {
  * stop, not a failure, and is not something to retry automatically.
  */
 export class QTSCanceledError extends QTSError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
+  constructor(message: string, cause?: unknown, status?: number) {
+    super(message, cause, status);
     this.name = 'QTSCanceledError';
   }
 }
@@ -125,13 +134,8 @@ function isNextCall(value: unknown): value is ErrorNextCall {
  * token. Create a key with at least one resource/action scope before trying again.
  */
 export class QTSAuthError extends QTSError {
-  /** Machine-readable server code, including `apikey_without_scopes` on a scope-required rejection. */
-  readonly code?: string;
   constructor(message: string, cause?: unknown, status?: number) {
     super(message, cause, status);
     this.name = 'QTSAuthError';
-    if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string') {
-      this.code = cause.code;
-    }
   }
 }

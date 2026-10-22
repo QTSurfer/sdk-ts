@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against OpenAPI **0.128.37**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.46**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
@@ -8,7 +8,7 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | Operation | SDK surface or decision |
 | --- | --- |
 | `authenticate` | Top-level `authenticate()` exchanges the API key; `403 apikey_without_scopes` raises `QTSAuthError` without retrying or minting a token. |
-| `getAccount` | `getAccount()`; `Account.scopes` reports resource/action grants and `maxSweepCartesian` the full-grid cap. |
+| `getAccount` | `getAccount()`; `Account.scopes` reports enforced resource/action grants and `maxSweepCartesian` the full-grid cap. |
 | `getAccountUsage` | `getAccountUsage()`. |
 | `listExchanges` | `getExchanges()`. |
 | `listInstruments` | `getInstruments(exchangeId)` for CEX, `getPools(exchangeId)` for DEX; default segment. |
@@ -21,7 +21,7 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getStrategy` | `getStrategy(strategyId)`. |
 | `deleteStrategy` | `deleteStrategy(strategyId)`. |
 | `getStrategyCode` | `getStrategyCode(strategyId)`. |
-| `prepareBacktest` | Internal ticker preparation in `executeBacktest()` and `sweep()`; explicit kline/funding type and cadence remain generated-client operations. |
+| `prepareBacktest` | Internal `ticker` (default) or `kline` preparation in `executeBacktest()` and `sweep()`; explicit cadence and funding remain generated-client operations. |
 | `getPrepareStatus` | Internal polling in `executeBacktest()` and `sweep()`; the temporary job ID is workflow-owned. |
 | `executeSweep` | `sweep()` submits the sweep and returns its lifecycle handle. |
 | `getSweepResult` | `Sweep.result` polls; `Sweep.getResults(view?)` rereads results in another view. |
@@ -53,12 +53,17 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `sendLiveCommand` | `sendLiveCommand(runId, request)` delivers transient strategy commands. |
 | `getLiveRunSignals` | `getLiveSignals(runId, query?)` and `getNextLiveSignals(runId, page)`. |
 | `getLiveRunPaper` | `getLiveRunPaper(runId)` reads simulated accounts and positions. |
-| `getLiveRunPaperEquity` | `getLiveRunPaperEquity(...)` and `getNextLiveRunPaperEquity(...)`. |
+| `getLiveRunPaperEquity` | `getLiveRunPaperEquity(...)` returns the `LivePaperEquityCurve` shape; `getNextLiveRunPaperEquity(...)` retains curve filters and shaping options. Supports account equity and per-instrument `realisedPnl` / `totalPnl`. |
 | `mintLiveConnectionToken` | Internal to `connectLive()`; the SDK manages token minting and refresh rather than exposing a connection credential. |
 
 Prepare/execute/poll stages stay inside the backtest and sweep workflows because their temporary
 identifiers and lifecycle are owned there. The generated `@qtsurfer/api-client` remains available
 when an endpoint-level call is needed.
+
+`QTSError` preserves structured server `code`, missing scope `required`, and `retryable` guidance
+from API error payloads. A `403 insufficient_scope` is not retried; update the API key's grants and
+refresh its token. Terminal execution errors expose `JobState.retryable` for an explicit caller
+decision about a later resubmission.
 
 AsyncAPI **0.3.0** is covered separately by `LiveConnection`: `connectLive()` manages the
 connection and `sig:<runId>` subscription, `getSignalHistory()` reads retained sandbox
