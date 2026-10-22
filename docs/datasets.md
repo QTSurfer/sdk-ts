@@ -29,7 +29,7 @@ or make them available to new backtests.
 
 Poll until the upload state is ready or failed. Only a ready version is usable. The returned version
 contains the discovered range, cadence, row count, and gap information. The CSV format and validation
-rules are defined in the API's [dataset reference](https://qtsurfer.github.io/docs/datasets.html).
+rules are defined in the API's [dataset reference](https://www.qtsurfer.com/docs/developers/api/datasets).
 
 For another version, or to recover a lost creation response, open a session and repeat the same
 transfer/finalize flow. Repeating `openDatasetUpload` while a session is open is safe; a finalized
