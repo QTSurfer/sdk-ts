@@ -59,7 +59,7 @@ console.log(result.params);
 
 For sweep retention, pass `equityCurve` on `SweepRequest`, then read a retained trial with
 `handle.getEquityCurve(runIx, options?)`. Non-retained rows answer `404`. The shared API
-[equity-curve guide](https://qtsurfer.github.io/docs/equity_curves.html) defines transforms,
+[equity-curve guide](https://www.qtsurfer.com/docs/developers/api/equity_curves) defines transforms,
 differential decoding, metadata, and the meaning of equity.
 
 ## Sweeps
