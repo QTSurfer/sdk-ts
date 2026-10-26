@@ -48,7 +48,7 @@ describe('backtest workflow', () => {
 
   it('runs the full happy path and returns ResultMap', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 100, completed: 100 }),
     );
@@ -97,7 +97,7 @@ describe('backtest workflow', () => {
 
   it('uses the kline route consistently for candle datasets', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(ok({ status: 'Completed', size: 1, completed: 1 }));
     executeBacktest.mockResolvedValue(ok({ jobId: 'exec-1' }));
     getBacktestResult.mockResolvedValue(ok({
@@ -122,7 +122,7 @@ describe('backtest workflow', () => {
 
   it('forwards scalar strategy-property values to the execution', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),
     );
@@ -147,7 +147,7 @@ describe('backtest workflow', () => {
 
   it('compiles in a single request, with no status polling', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),
     );
@@ -186,7 +186,7 @@ describe('backtest workflow', () => {
 
   it('throws QTSPreparationError when prepare status is Failed', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({
         status: 'Failed',
@@ -206,7 +206,7 @@ describe('backtest workflow', () => {
 
   it('throws QTSExecutionError when execution fails and calls cancelBacktest on abort', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),
     );
@@ -252,7 +252,7 @@ describe('backtest workflow', () => {
     // wrong is quiet rather than loud: the caller receives an empty result for a backtest that
     // actually completed, and only notices when reading a field that should be there.
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),
     );
@@ -282,7 +282,7 @@ describe('backtest workflow', () => {
 
   it('prepares against a dataset when datasetId replaces instrument, sending no instrument key', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1, cadence: '1m', gaps: 0 }),
     );
@@ -345,7 +345,7 @@ describe('backtest workflow', () => {
 
   it('honors AbortSignal and triggers server-side cancelBacktest when aborted during execute', async () => {
     compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-sync' }));
-    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+    prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
     getPrepareStatus.mockResolvedValue(
       ok({ status: 'Completed', size: 1, completed: 1 }),
     );

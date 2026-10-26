@@ -31,14 +31,34 @@ describe('dataset workflow', () => {
   });
 
   it('starts an external import and reads its state', async () => {
-    apiImportDataset.mockResolvedValue(ok({ datasetId: 'ds_1', importId: 'imp_1', jobId: 'job_1', status: 'fetching' }, 202));
+    apiImportDataset.mockResolvedValue(ok({ datasetId: 'ds_1', importId: 'imp_1', jobId: 'job_1', status: 'fetching', cadence: '5m' }, 202));
     apiGetDatasetImport.mockResolvedValue(ok({ importId: 'imp_1', status: 'ready' }));
     const datasets = await import('../../src/workflows/datasets');
     const request = { name: 'WETH/USDC', instrument: 'WETH/USDC', from: '2026-08-01T00:00:00Z', to: '2026-08-02T00:00:00Z', type: 'dex', dex: { network: 'ethereum', contract: '0x1' } } as never;
-    await expect(datasets.importDataset(request)).resolves.toMatchObject({ importId: 'imp_1' });
+    await expect(datasets.importDataset(request)).resolves.toMatchObject({ importId: 'imp_1', cadence: '5m' });
     await expect(datasets.getDatasetImport('ds_1', 'imp_1')).resolves.toMatchObject({ status: 'ready' });
     expect(apiImportDataset).toHaveBeenCalledWith({ body: request });
     expect(apiGetDatasetImport).toHaveBeenCalledWith({ path: { datasetId: 'ds_1', importId: 'imp_1' } });
+  });
+
+  it('surfaces plan cadence refusals as non-retryable HTTP 402 errors', async () => {
+    apiImportDataset.mockResolvedValue({
+      data: undefined,
+      error: {
+        code: 402,
+        message: 'cadence 1m is not included in your plan',
+        retryable: false,
+        upgradeUrl: 'https://www.qtsurfer.com/pricing',
+      },
+      response: { status: 402 } as Response,
+    });
+    const datasets = await import('../../src/workflows/datasets');
+
+    await expect(datasets.importDataset({} as never)).rejects.toMatchObject({
+      status: 402,
+      retryable: false,
+      upgradeUrl: 'https://www.qtsurfer.com/pricing',
+    });
   });
 
   afterEach(() => {

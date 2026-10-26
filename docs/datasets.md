@@ -65,6 +65,7 @@ const imported = await qts.importDataset({
   cadence: '5m',
   cex: { exchange: 'binance', segment: 'spot', dataType: 'klines' },
 });
+console.log(imported.cadence); // The cadence chosen for this import, when known at acceptance.
 const deadline = Date.now() + 15 * 60_000;
 let state = await qts.getDatasetImport(imported.datasetId, imported.importId);
 while (state.status !== 'ready' && state.status !== 'failed' && Date.now() < deadline) {
@@ -79,22 +80,30 @@ console.log(state.version?.cadence);
 `name` is unique among your datasets (`409` if taken); `instrument` is a plain `BASE/QUOTE` pair.
 `from` is inclusive, `to` exclusive, and the span is capped by `getAccount().maxImportRangeHours`.
 Imports count towards the account's dataset and storage limits; `429` reports exceeded quotas.
+The `202` response includes `cadence` when the result is already determined. A `402` means the
+requested cadence, or the native per-trade data requested by a DEX import, is not included in the
+plan. It is not retried; inspect `QTSError.upgradeUrl` when present and change the plan before
+trying again.
 
 For `type: 'cex'`, the `cex` block is required: choose a centralized `exchange` from
 `getExchanges()`, `segment: 'spot'` (the only supported import segment), and `dataType: 'ticker'`
 or `'klines'`. That data type becomes the ready dataset's `type`. DEX exchange ids are refused here.
 Optional `cadence` accepts `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`,
-`12h`, `1d`, `1w`, or `1q` for either data type. Omit it to use the finest cadence held across
-the whole range: when available cadence changes within the window, the result consistently uses
-the coarser one. A finer requested cadence, or one that is not an exact multiple, fails
-asynchronously; `state.error` names the finest available cadence. Missing history also fails
-asynchronously. Invalid source fields or cadence labels return `400` immediately.
+`12h`, `1d`, `1w`, or `1q` for either data type. Your plan determines which cadences are available
+and its default; see “Cadences by plan” in the [API documentation](https://www.qtsurfer.com/docs/developers/api).
+Omitting `cadence` uses that default. On a plan that includes a source's native rate, an omitted
+CEX cadence follows the finest cadence available across the requested range. A finer requested
+cadence, or one that is not an exact multiple, fails asynchronously; `state.error` names the finest
+available cadence. Missing history also fails asynchronously. Invalid source fields or cadence
+labels return `400`; a cadence excluded by the plan returns `402` without a retry delay.
 
 For `type: 'dex'`, pass a `dex` block with `network` (`ethereum` or `robinhood`) and pool/pair
-`contract`. Omitted `cadence` preserves native per-trade data (`ticker`); this path also requires
-`id: 'uniswap'` and `version: 'v2' | 'v3'`. `factory` is optional and otherwise discovered on-chain.
-For preaggregated candles, set `cadence: '1s' | '1m' | '5m'`; protocol/version/factory are ignored,
-and the dataset type is `klines`. Unsupported chain/cadence combinations fail asynchronously.
+`contract`. By default the import builds candles (`klines`) at the plan's default cadence; it does
+not need `id`, `version`, or `factory`. A plan that includes the source's native rate can instead
+request per-trade data by omitting `cadence`; this path requires `id: 'uniswap'` and
+`version: 'v2' | 'v3'`, while `factory` is optional and otherwise discovered on-chain. Set an
+allowed cadence explicitly to choose another candle width. Unsupported chain/cadence combinations
+fail asynchronously.
 
 ```ts
 const poolHistory = await qts.importDataset({

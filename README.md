@@ -425,13 +425,15 @@ at its presigned URL. A `409` means that session already produced a version;
 open a new session instead of reusing its URL.
 
 `importDataset()` also creates datasets from CEX history (`type: 'cex'`, a `cex` source block, and
-an optional cadence) or DEX pool history. Poll `getDatasetImport()` until ready before use. See
+an optional cadence) or DEX pool history. The plan sets allowed cadences and the default; the
+acceptance response includes the cadence when known, and an excluded cadence returns a non-retryable
+`402`. Poll `getDatasetImport()` until ready before use. See
 the [dataset guide](docs/datasets.md#importing-market-history) for source fields, range limits,
 cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.48**: all 48 REST operations are represented. The operation-by-
+Measured against API spec **0.128.49**: all 48 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 

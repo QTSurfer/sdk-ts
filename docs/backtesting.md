@@ -31,11 +31,14 @@ const candleSweep = await qts.sweep({
 
 A `kline` prepare over a dataset that is not `klines` fails with `400`; check the ready dataset's
 `type` before submitting. Uploads are classified from their rows once ingested, so a candle CSV
-becomes `klines`. Managed-exchange kline preparation accepts the same fifteen cadence labels as
-ticker/funding: `1s`, `5s`, `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`, `12h`, `1d`,
-`1w`, `1q`; omitted, cadence defaults to `1s`. The dataset's discovered cadence and resampling
-rules are in the [API preparation guide](https://github.com/QTSurfer/qtsurfer-api/blob/main/docs/backtest_execute.md#preparing-data).
-A DEX venue id cannot be prepared directly; import the pool's history as a dataset first.
+becomes `klines`. For managed exchange data, the plan determines which cadence labels are allowed
+and which is the default; the [API documentation](https://www.qtsurfer.com/docs/developers/api)
+lists them under “Cadences by plan”. The high-level `executeBacktest()` and `sweep()` workflows
+omit cadence and use that plan default. A dataset-backed prepare uses the dataset version's own
+cadence and is not limited by the plan. Explicit cadence remains available through the generated
+API client; a managed-exchange request for a cadence outside the plan returns HTTP `402`, with
+`retryable: false` and an optional `upgradeUrl`. A DEX venue id cannot be prepared directly; import
+the pool's history as a dataset first.
 
 ```ts
 const result = await qts.executeBacktest({

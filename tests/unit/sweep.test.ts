@@ -98,7 +98,7 @@ const completed = () =>
 /** Compile and prepare always succeed unless a test says otherwise. */
 function stubPipeline() {
   compileStrategy.mockResolvedValue(ok({ strategyId: 'strategy-abc' }));
-  prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1' }));
+  prepareBacktest.mockResolvedValue(ok({ jobId: 'prep-1', cadence: '1m' }));
   getPrepareStatus.mockResolvedValue(
     ok({ status: 'Completed', size: 10, completed: 10, coverageRatio: 0.98 }),
   );

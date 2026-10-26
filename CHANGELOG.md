@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.27.0
+
+### Minor Changes
+
+- `executeBacktest()` and `sweep()` prepare managed-exchange data at the account plan's default cadence; dataset-backed runs keep the dataset version's cadence. `importDataset()` reports the selected cadence when known. A DEX import defaults to plan-cadence candles, while native per-trade data remains available on plans that include the source's native rate. A cadence or data shape excluded by the plan returns non-retryable HTTP `402`; inspect `QTSError.upgradeUrl` when present. Explicit prepare cadence and `PrepareAccepted.cadence` remain available through the generated API client.
+
 ## 0.26.0
 
 ### Check plan requirements before running a strategy
@@ -12,7 +18,8 @@ Change the plan before retrying. `getStrategy()` does not return compile-time `r
 
 ```ts
 const compiled = await qts.compileStrategy(source);
-if (compiled.requires?.includes('indicators.pro')) console.log('A Pro-capable plan is required');
+if (compiled.requires?.includes("indicators.pro"))
+  console.log("A Pro-capable plan is required");
 ```
 
 ### Choose a live sandbox trial duration
