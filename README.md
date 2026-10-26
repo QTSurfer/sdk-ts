@@ -313,7 +313,10 @@ The `strategyId` is the one returned when the source was compiled and registered
 surface compilation on its own — `executeBacktest()` and `sweep()` each do it internally and keep the id —
 so obtain it with `qts.compileStrategy(source)` if you need to validate a strategy before running it.
 The response includes `declaredProperties`, a best-effort vocabulary of parameter keys that can
-catch a typo before you submit a sweep.
+catch a typo before you submit a sweep, and `requires`, the plan capabilities needed by the compiled
+source (for example, `indicators.pro`). A plan without a listed capability cannot validate, backtest,
+sweep, or start it; the API returns a non-retryable `402` with an optional upgrade URL. See the
+[strategy guide](docs/strategy.md) for the compile and recovery example.
 
 ```ts
 const outcome = await qts.validateStrategy(strategyId);
@@ -428,7 +431,7 @@ cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.46**: all 48 REST operations are represented. The operation-by-
+Measured against API spec **0.128.48**: all 48 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 
@@ -436,7 +439,8 @@ operations in [API coverage](docs/api-coverage.md).
 
 All SDK errors extend `QTSError` so you can catch them generically or match by subclass.
 When the server returns structured error details, `QTSError` exposes `code`, `required` (for
-`insufficient_scope`), `retryable`, and `status` where the call site has the response status.
+`insufficient_scope`), `retryable`, the optional plan `upgradeUrl` (for HTTP `402`), and `status`
+where the call site has the response status.
 Failed execution errors also expose `retryable` from the terminal `JobState`; a `true` value means
 the same request may succeed after a transient data fault, not that the SDK should resubmit it
 automatically.

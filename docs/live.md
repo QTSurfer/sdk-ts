@@ -74,6 +74,23 @@ console.log(run.warmFrom); // 0
 The value is fixed for the lifetime of the run and is not a live parameter. To change it, stop and start the run
 again. Replayed signals describe time before the run started, so they are not sent over the run's channel or stream.
 
+## Sandbox trial duration
+
+Set `sandboxMinutes` when starting a run to ask for a minimum trial duration from 5 to 1,440 minutes.
+If omitted, the plan's shortest duration applies. Asking for less than that plan allows returns `429`;
+values outside the range or non-integers return `400`. The trial also waits for enough market-feed
+updates to judge the run, so a quiet instrument can keep it in `SANDBOX` beyond the requested time,
+up to 24 hours. The effective value is returned on `startLive()`, `getLive()`, and `getLiveRun()`;
+it is fixed at start and absent for runs that have no trial.
+
+```ts
+const run = await qts.startLive(strategyId, {
+  sources: cexSources,
+  sandboxMinutes: 120,
+});
+console.log(run.sandboxMinutes); // 120
+```
+
 `QTSurfer.connectLive()` opens a managed [Centrifugo](https://centrifugal.dev/) connection for one live
 run. The SDK mints and refreshes its connection token through the configured
 REST client; `centrifuge` handles reconnects and server pings.

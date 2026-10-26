@@ -49,4 +49,16 @@ describe('error hierarchy', () => {
     const job = new QTSExecutionError('Execution failed', { retryable: true });
     expect(job.retryable).toBe(true);
   });
+
+  it('preserves the optional plan upgrade URL from a 402 response', () => {
+    const denied = new QTSError('Plan required', {
+      code: 'plan_required', message: 'Pro indicators need an eligible plan',
+      retryable: false, upgradeUrl: 'https://www.qtsurfer.com/pricing',
+    }, 402);
+    expect(denied).toMatchObject({
+      status: 402,
+      retryable: false,
+      upgradeUrl: 'https://www.qtsurfer.com/pricing',
+    });
+  });
 });

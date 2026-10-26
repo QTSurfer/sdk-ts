@@ -1,5 +1,32 @@
 # @qtsurfer/sdk
 
+## 0.26.0
+
+### Check plan requirements before running a strategy
+
+`compileStrategy()` returns `requires`, including `indicators.pro` when the source uses Pro
+indicators. Registration succeeds on any plan, but validation, backtests, sweeps, and live starts
+are refused with HTTP `402` when the plan lacks a required capability. The resulting `QTSError`
+has `retryable: false` and carries `upgradeUrl` when the environment provides a plan-management page.
+Change the plan before retrying. `getStrategy()` does not return compile-time `requires`.
+
+```ts
+const compiled = await qts.compileStrategy(source);
+if (compiled.requires?.includes('indicators.pro')) console.log('A Pro-capable plan is required');
+```
+
+### Choose a live sandbox trial duration
+
+`startLive()` accepts `sandboxMinutes` from 5 to 1,440. Omission uses the plan's shortest trial;
+asking for less than that returns `429`, and an invalid value returns `400`. The trial needs enough
+market-feed updates to be judged, so it can last longer than requested, up to 24 hours. The effective
+minimum appears on `startLive()`, `getLive()`, and `getLiveRun()` and is fixed when the run starts.
+
+```ts
+const run = await qts.startLive(strategyId, { sources, sandboxMinutes: 120 });
+console.log(run.sandboxMinutes);
+```
+
 ## 0.25.0
 
 ### Minor Changes

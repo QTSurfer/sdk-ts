@@ -36,16 +36,20 @@ describe('live commands', () => {
     const { startLive, getLive } = await import('../../src/live');
     expectTypeOf<StartLiveRequest['warmFrom']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<StartLiveRequest['sandbox']>().toEqualTypeOf<boolean | undefined>();
+    expectTypeOf<StartLiveRequest['sandboxMinutes']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<LiveRunWithStream['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<LiveRunWithStream['sandboxMinutes']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<LiveRunDetail['warmFrom']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<LiveRunDetail['sandboxMinutes']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<StartLiveRequest['sources'][number]['instruments']>().toEqualTypeOf<string[] | undefined>();
 
     const request = {
       sources: [{ venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker' }],
       warmFrom: 0,
       sandbox: true,
+      sandboxMinutes: 60,
     } satisfies StartLiveRequest;
-    const started = { runId: 'run-1', warmFrom: 0 };
+    const started = { runId: 'run-1', warmFrom: 0, sandboxMinutes: 60 };
     apiStartLive.mockResolvedValueOnce(ok(started, 201));
 
     await expect(startLive('strategy-1', request)).resolves.toEqual(started);

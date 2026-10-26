@@ -46,10 +46,12 @@ import { requestFailed } from '../internal/requestError';
  */
 export type StrategyState = ApiStrategyState;
 
-/** Result of compiling source, including the best-effort parameter vocabulary. */
+/** Result of compiling source, including parameters and required plan capabilities. */
 export interface CompiledStrategy {
   strategyId: string;
   declaredProperties?: DeclaredProperty[];
+  /** Required platform capabilities, e.g. `indicators.pro`; absent on older API responses. */
+  requires?: Array<'indicators.pro'>;
 }
 
 /** Compile and register strategy source without starting a backtest or sweep. */

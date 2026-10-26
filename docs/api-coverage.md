@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against OpenAPI **0.128.46**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.48**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
@@ -16,7 +16,7 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `downloadTickers` | `downloadTickers(...)` returns a `Blob`; `downloadTickersWithMetadata(...)` also exposes timestamp/provisional headers. |
 | `downloadKlines` | `downloadKlines(...)` returns a `Blob`; `downloadKlinesWithMetadata(...)` also exposes timestamp/provisional headers. |
 | `listStrategies` | `getStrategies({ includeDeleted? })`; deleted rows include `deletedAt`. |
-| `compileStrategy` | `compileStrategy(source)`; also used by `executeBacktest()` and `sweep()`. |
+| `compileStrategy` | `compileStrategy(source)` reports `requires` plan capabilities; also used by `executeBacktest()` and `sweep()`. |
 | `validateStrategy` | `validateStrategy(strategyId)`. |
 | `getStrategy` | `getStrategy(strategyId)`. |
 | `deleteStrategy` | `deleteStrategy(strategyId)`. |
@@ -40,12 +40,12 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getDatasetUpload` | `getDatasetUpload(datasetId, uploadId)` reads ingestion state. |
 | `importDataset` | `importDataset(request)` starts a CEX history or DEX pool import. |
 | `getDatasetImport` | `getDatasetImport(datasetId, importId)` reads import progress. |
-| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom` and `sandbox`; previously promoted compilations start in `LIVE` by default, and the response reports the effective warm-up value when present. |
-| `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` when present. |
+| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom`, `sandbox`, and `sandboxMinutes`; previously promoted compilations start in `LIVE` by default, and the response reports effective warm-up and sandbox duration when present. |
+| `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` and `sandboxMinutes` when present. |
 | `stopLive` | `stopLive(strategyId)`. |
 | `listLive` | `listLive(query?)` lists all runs owned by the caller, including sandbox and stopped runs. |
 | `listPublicLive` | `listPublicLive(query?)` lists only public runs in `LIVE` and still running, including runs that started in that stage. |
-| `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs`, optional `stats`, and `warmFrom` when present. |
+| `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs`, optional `stats`, `warmFrom`, and `sandboxMinutes` when present. |
 | `updateLive` | `updateLive(runId, request)` changes mutable run metadata. |
 | `updateLiveParams` | `updateLiveParams(runId, request)` or `LiveConnection.updateParams(params)`. |
 | `rotateLiveStream` | `rotateLiveStream(runId)` replaces a run's secret plain-WebSocket URL. |
@@ -60,10 +60,10 @@ Prepare/execute/poll stages stay inside the backtest and sweep workflows because
 identifiers and lifecycle are owned there. The generated `@qtsurfer/api-client` remains available
 when an endpoint-level call is needed.
 
-`QTSError` preserves structured server `code`, missing scope `required`, and `retryable` guidance
-from API error payloads. A `403 insufficient_scope` is not retried; update the API key's grants and
-refresh its token. Terminal execution errors expose `JobState.retryable` for an explicit caller
-decision about a later resubmission.
+`QTSError` preserves structured server `code`, missing scope `required`, `retryable` guidance, and
+the optional plan `upgradeUrl` from API error payloads. A `403 insufficient_scope` or `402` plan
+refusal is not retried; change the key grants or plan before trying again. Terminal execution errors
+expose `JobState.retryable` for an explicit caller decision about a later resubmission.
 
 AsyncAPI **0.3.0** is covered separately by `LiveConnection`: `connectLive()` manages the
 connection and `sig:<runId>` subscription, `getSignalHistory()` reads retained sandbox

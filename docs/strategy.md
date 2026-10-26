@@ -21,6 +21,19 @@ if (outcome.queued) {
 }
 ```
 
+The compile response also reports `requires`: the plan capabilities the compiled source needs,
+such as `indicators.pro`. Registration is allowed on every plan; a plan without a listed capability
+cannot validate, backtest, sweep, or start that strategy. Those requests fail with HTTP `402` and
+`QTSError.retryable === false`; inspect the message and optional `QTSError.upgradeUrl`, change the
+plan, then retry. `getStrategy()` does not return this compile-only field.
+
+```ts
+const compiled = await qts.compileStrategy(source);
+if (compiled.requires?.includes('indicators.pro')) {
+  console.log('This strategy needs a plan with Pro indicators');
+}
+```
+
 Validation is idempotent. `queued: false` means no new check was started, not necessarily that a
 check passed. Poll `getStrategy` with an application deadline while validation is `pending`; a
 passed bounded check is a useful floor, not a trading-performance guarantee.

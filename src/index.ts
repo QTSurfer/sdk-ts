@@ -6,7 +6,7 @@
  */
 export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client';
 export { getAccount, getAccountUsage } from './account';
-export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, InsufficientScopeError, KeyScopes, ErrorNextCall, ResponseError } from '@qtsurfer/api-client';
+export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, InsufficientScopeError, KeyScopes, ErrorNextCall, ResponseError, PlanRequiredError, SandboxMinutes } from '@qtsurfer/api-client';
 export type {
   DatasetVersion,
   DatasetImportCexRequest,

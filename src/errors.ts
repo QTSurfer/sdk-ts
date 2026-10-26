@@ -6,8 +6,10 @@ import type { ErrorNextCall } from '@qtsurfer/api-client';
  * stage failed. `status` is only set when the throw site had an HTTP status
  * to attach: {@link QTSDownloadError} carries one after an HTTP response, as does the
  * plain `QTSError` thrown by the single-request calls (`exchanges`,
- * `instruments`, `validateStrategy`, `strategy`). The workflow-stage errors
- * carry `cause` instead and encode retryability in their message.
+ * `instruments`, `validateStrategy`, `strategy`). Plan refusals preserve their
+ * optional `upgradeUrl` alongside status `402` and `retryable: false`. The
+ * workflow-stage errors carry `cause` instead and encode retryability in their
+ * message.
  */
 export class QTSError extends Error {
   /** HTTP status code, when the underlying transport surfaced one. */
@@ -22,6 +24,8 @@ export class QTSError extends Error {
   readonly required?: string;
   /** Whether the API says the same request may succeed if retried. */
   readonly retryable?: boolean;
+  /** Plan-management page supplied for a `402` refusal, when available. */
+  readonly upgradeUrl?: string;
   constructor(message: string, readonly cause?: unknown, status?: number) {
     super(message);
     this.name = 'QTSError';
@@ -32,6 +36,7 @@ export class QTSError extends Error {
       if ('code' in cause && typeof cause.code === 'string') this.code = cause.code;
       if ('required' in cause && typeof cause.required === 'string') this.required = cause.required;
       if ('retryable' in cause && typeof cause.retryable === 'boolean') this.retryable = cause.retryable;
+      if ('upgradeUrl' in cause && typeof cause.upgradeUrl === 'string') this.upgradeUrl = cause.upgradeUrl;
     }
   }
 }
