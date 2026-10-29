@@ -97,19 +97,36 @@ cadence, or one that is not an exact multiple, fails asynchronously; `state.erro
 available cadence. Missing history also fails asynchronously. Invalid source fields or cadence
 labels return `400`; a cadence excluded by the plan returns `402` without a retry delay.
 
-For `type: 'dex'`, pass a `dex` block with `network` (`ethereum` or `robinhood`) and pool/pair
-`contract`. By default the import builds candles (`klines`) at the plan's default cadence; it does
-not need `id`, `version`, or `factory`. A plan that includes the source's native rate can instead
-request per-trade data by omitting `cadence`; this path requires `id: 'uniswap'` and
+For `type: 'dex'`, pass a `dex` block with `network` (`ethereum`, `robinhood`, or `solana`) and
+pool/pair `contract`. By default the import builds candles (`klines`) at the plan's default cadence;
+it does not need `id`, `version`, or `factory`. A plan that includes the source's native rate can
+instead request per-trade data by omitting `cadence`; this path requires `id: 'uniswap'` and
 `version: 'v2' | 'v3'`, while `factory` is optional and otherwise discovered on-chain. Set an
-allowed cadence explicitly to choose another candle width. Unsupported chain/cadence combinations
-fail asynchronously.
+allowed cadence explicitly to choose another candle width. Solana supports candles only, so even an
+Elite plan uses its default cadence (`1s`) when omitted; `id`, `version`, and `factory` are never
+needed. A Solana pool address is base58 and case-sensitive: pass it exactly as written.
+
+Candle imports (explicit cadence or plan default) whose `from` is earlier than 180 days before the
+request return `400` immediately, for every network. Per-trade DEX imports and CEX imports do not
+have this history limit. DEX candles are not a contiguous grid: a bar can be absent when no trade
+occurred during that interval. Unsupported source/cadence combinations can still fail asynchronously.
 
 ```ts
 const poolHistory = await qts.importDataset({
   name: 'WETH pool history', instrument: 'WETH/USDC', type: 'dex', cadence: '1m',
   from: '2026-09-01T00:00:00Z', to: '2026-09-01T01:00:00Z',
   dex: { network: 'ethereum', contract: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640' },
+});
+```
+
+Solana imports always produce candles. Use the pool's base58 address as-is; no protocol or version
+is required:
+
+```ts
+const solanaHistory = await qts.importDataset({
+  name: 'SOL pool history', instrument: 'SOL/USDC', type: 'dex', cadence: '5m',
+  from: '2026-10-27T00:00:00Z', to: '2026-10-27T06:00:00Z',
+  dex: { network: 'solana', contract: 'Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE' },
 });
 ```
 

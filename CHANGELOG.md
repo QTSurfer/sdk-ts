@@ -1,5 +1,11 @@
 # @qtsurfer/sdk
 
+## 0.28.0
+
+### Minor Changes
+
+- Support Solana DEX dataset imports through `importDataset()`. Solana pools produce candles only; the guide covers the 180-day candle history limit and sparse bars.
+
 ## 0.27.0
 
 ### Minor Changes
