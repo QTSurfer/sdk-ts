@@ -1,5 +1,12 @@
 # @qtsurfer/sdk
 
+## 0.28.1
+
+### Patch Changes
+
+- Document recovery for HTTP 409 responses when compiled strategies are incompatible with the current platform version. SDK API requests and direct signed storage requests now retry once on the backup hostname after a network failure without an HTTP response.
+- Adopt `@qtsurfer/api-client` 0.30.0 for typed 409 responses and primary/backup host failover.
+
 ## 0.28.0
 
 ### Minor Changes

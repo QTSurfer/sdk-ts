@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setConfig = vi.fn();
+const withNetworkFailoverFetch = vi.fn((fetchImpl?: typeof fetch) => fetchImpl ?? fetch);
 const apiAuth = vi.fn();
 const apiDownloadTickers = vi.fn();
 const apiDownloadKlines = vi.fn();
@@ -8,6 +9,7 @@ const apiListExchanges = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
+  withNetworkFailoverFetch,
   authenticate: apiAuth,
   compileStrategy: vi.fn(),
   getStrategy: vi.fn(),

@@ -40,6 +40,12 @@ API client; a managed-exchange request for a cadence outside the plan returns HT
 `retryable: false` and an optional `upgradeUrl`. A DEX venue id cannot be prepared directly; import
 the pool's history as a dataset first.
 
+If the platform has changed since a strategy was compiled, the execution submission can return
+`QTSExecutionError` with `status === 409`. The strategy was not queued. The SDK workflows compile
+source as part of each call, so retry by submitting the same workflow again; if you use the
+generated endpoint directly, register the source again with `compileStrategy()` and submit its new
+`strategyId`.
+
 ```ts
 const result = await qts.executeBacktest({
   strategy: source, exchangeId: 'binance', instrument: 'BTC/USDT',

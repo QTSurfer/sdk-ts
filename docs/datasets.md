@@ -11,6 +11,11 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 Use datasets for your own ticker CSV. The SDK authenticates metadata calls but uploads bytes straight
 to the presigned target without a bearer token or API key.
 
+If a `storage.` host has a network failure before returning an HTTP response, the SDK retries that
+same signed URL once with the first hostname label changed to `storage2` (for example,
+`storage.qtsurfer.net` → `storage2.qtsurfer.net`). The domain suffix, path, and query are preserved,
+including the signature. HTTP errors are returned without a host retry.
+
 ```ts
 const created = await qts.createDataset({ name: 'My BTC ticks', instrument: 'BTC/USDT' });
 await qts.uploadDatasetFile(created, csvText);

@@ -11,6 +11,7 @@ const cancelSweep = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig: vi.fn() },
+  withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   compileStrategy,
   prepareBacktest,
   getPrepareStatus,

@@ -3,6 +3,7 @@ import {
   client as apiClient,
   mintLiveConnectionToken,
   type AuthTokenResponse,
+  withNetworkFailoverFetch,
 } from '@qtsurfer/api-client';
 import { QTSAuthError } from '../errors';
 import {
@@ -148,7 +149,7 @@ export class AuthenticatedClient {
     this.apikey = apikey;
     this.baseUrl = opts.baseUrl ?? DEFAULT_BASE_URL;
     this.store = opts.store ?? new InMemoryTokenStore();
-    this.fetchImpl = opts.fetch;
+    this.fetchImpl = withNetworkFailoverFetch(opts.fetch);
   }
 
   /** Currently cached token, if any. */
@@ -163,7 +164,7 @@ export class AuthenticatedClient {
       const { data, error, response } = await apiAuth({
         baseUrl: this.baseUrl,
         headers: { 'X-API-Key': this.apikey },
-        ...(this.fetchImpl ? { fetch: this.fetchImpl } : {}),
+        fetch: this.fetchImpl,
       });
       if (error || !data) {
         const message = error && typeof error === 'object'
@@ -230,7 +231,7 @@ export class AuthenticatedClient {
     apiClient.setConfig({
       baseUrl: this.baseUrl,
       headers: { Authorization: `Bearer ${token.access_token}` },
-      ...(this.fetchImpl ? { fetch: this.fetchImpl } : {}),
+      fetch: this.fetchImpl,
     });
   }
 

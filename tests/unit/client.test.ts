@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setConfig = vi.fn();
+const withNetworkFailoverFetch = vi.fn((fetchImpl?: typeof fetch) => fetchImpl ?? fetch);
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
+  withNetworkFailoverFetch,
   compileStrategy: vi.fn(),
   getStrategy: vi.fn(),
   prepareBacktest: vi.fn(),
@@ -16,6 +18,7 @@ vi.mock('@qtsurfer/api-client', () => ({
 describe('QTSurfer client', () => {
   beforeEach(() => {
     setConfig.mockClear();
+    withNetworkFailoverFetch.mockClear();
   });
 
   afterEach(() => {
@@ -55,6 +58,7 @@ describe('QTSurfer client', () => {
     const customFetch = vi.fn() as unknown as typeof fetch;
     new QTSurfer({ baseUrl: 'https://example.test/v1', fetch: customFetch });
 
+    expect(withNetworkFailoverFetch).toHaveBeenCalledWith(customFetch);
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({ fetch: customFetch }),
     );

@@ -86,6 +86,13 @@ const qts = await authenticate(undefined, { store: browserStore });
 `authenticate()` also accepts `{ baseUrl, fetch }` for staging, custom HTTP
 transports, or a Node-`fetch` polyfill in legacy runtimes.
 
+Requests whose hostname starts with `api.` retry once with only that label changed to `api2` after
+a network failure with no HTTP response (for example, `api.qtsurfer.net` → `api2.qtsurfer.net` or
+`api.qtsurfer.com` → `api2.qtsurfer.com`). Direct signed storage URLs similarly retry with the
+first `storage` label changed to `storage2`, preserving the domain suffix, path, and query. HTTP
+error responses are not retried, and each new request starts at its primary host. The wrapper also
+applies to a custom `fetch` supplied to `authenticate()` or `QTSurfer`.
+
 Token `scopes` and `(await qts.getAccount()).scopes` are resource-to-actions maps such as
 `{ backtests: ['read', 'execute'] }`, with `{}` for no grants. Protected operations enforce these
 grants: a `403 insufficient_scope` raises an SDK error with `code` and the missing `required`
@@ -433,7 +440,7 @@ cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.49**: all 48 REST operations are represented. The operation-by-
+Measured against API spec **0.128.54**: all 48 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 
@@ -446,6 +453,11 @@ where the call site has the response status.
 Failed execution errors also expose `retryable` from the terminal `JobState`; a `true` value means
 the same request may succeed after a transient data fault, not that the SDK should resubmit it
 automatically.
+
+An execution submission can throw `QTSExecutionError` with `status === 409` if its compiled strategy
+is incompatible with the current platform; resubmit the SDK workflow to compile the source again.
+`startLive()` uses `QTSError` with status `409` both for that compatibility case and for an already
+active run, so inspect its message before choosing a recovery.
 
 ```ts
 import {

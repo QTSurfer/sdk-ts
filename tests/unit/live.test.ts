@@ -10,6 +10,7 @@ const apiRotateLiveStream = vi.fn();
 const apiRevokeLiveStream = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
+  withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   sendLiveCommand: apiSendLiveCommand,
   startLive: apiStartLive,
   getLive: apiGetLive,

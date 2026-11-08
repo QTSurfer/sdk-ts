@@ -1,4 +1,4 @@
-import { client as apiClient } from '@qtsurfer/api-client';
+import { client as apiClient, withNetworkFailoverFetch } from '@qtsurfer/api-client';
 import {
   backtest,
   type BacktestOptions,
@@ -150,14 +150,14 @@ export class QTSurfer {
   private readonly liveUrl: string | undefined;
 
   constructor(options: QTSurferOptions) {
-    this.fetchImpl = options.fetch;
+    this.fetchImpl = withNetworkFailoverFetch(options.fetch);
     this.liveUrl = options.liveUrl;
     apiClient.setConfig({
       baseUrl: options.baseUrl,
       ...(options.token
         ? { headers: { Authorization: `Bearer ${options.token}` } }
         : {}),
-      ...(options.fetch ? { fetch: options.fetch } : {}),
+      ...(options.fetch ? { fetch: this.fetchImpl } : {}),
     });
   }
 

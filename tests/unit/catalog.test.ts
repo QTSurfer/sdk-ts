@@ -7,6 +7,7 @@ const apiListSegmentInstruments = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
+  withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   compileStrategy: vi.fn(),
   getStrategy: vi.fn(),
   validateStrategy: vi.fn(),

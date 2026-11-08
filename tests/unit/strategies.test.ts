@@ -9,6 +9,7 @@ const apiGetStrategyCode = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
   client: { setConfig },
+  withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   compileStrategy: vi.fn(),
   getStrategy: apiGetStrategy,
   validateStrategy: apiValidateStrategy,

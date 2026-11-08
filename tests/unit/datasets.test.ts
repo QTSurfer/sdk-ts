@@ -11,6 +11,7 @@ const apiImportDataset = vi.fn();
 const apiGetDatasetImport = vi.fn();
 
 vi.mock('@qtsurfer/api-client', () => ({
+  withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   listDatasets: apiListDatasets,
   createDataset: apiCreateDataset,
   getDataset: apiGetDataset,

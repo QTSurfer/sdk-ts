@@ -19,6 +19,11 @@ const cexSources: StartLiveRequest['sources'] = [{
 CEX `futures` is currently catalogue-only. Values and `type` are normalized to lower case;
 the server also accepts legacy `cx`/`dx`, but new typed requests use `cex`/`dex`.
 
+`startLive()` can throw `QTSError` with `status === 409` when the strategy was compiled against an
+older platform version and a release removed something it uses. No run is created in that case.
+Register the same source again with `compileStrategy()` and start the new `strategyId`. A `409` can
+also mean this strategy already has an active run; inspect `error.message` to distinguish the cases.
+
 ## Selecting instruments
 
 For a CEX run, you can leave `instruments` out of its source. If the compiled strategy recorded an

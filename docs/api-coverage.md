@@ -1,6 +1,6 @@
 # API coverage
 
-Measured against OpenAPI **0.128.49**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.54**: all 48 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
@@ -23,12 +23,12 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getStrategyCode` | `getStrategyCode(strategyId)`. |
 | `prepareBacktest` | Internal `ticker` (default) or `kline` preparation in `executeBacktest()` and `sweep()`; managed-exchange requests use the plan's default cadence and dataset requests use the version's own cadence. The transient `PrepareAccepted.cadence` is not returned by high-level workflows; explicit cadence and the accepted response remain generated-client operations. |
 | `getPrepareStatus` | Internal polling in `executeBacktest()` and `sweep()`; the temporary job ID is workflow-owned. |
-| `executeSweep` | `sweep()` submits the sweep and returns its lifecycle handle. |
+| `executeSweep` | `sweep()` submits the sweep and returns its lifecycle handle; incompatible compiled strategies fail with `QTSExecutionError` and status `409`. |
 | `getSweepResult` | `Sweep.result` polls; `Sweep.getResults(view?)` rereads results in another view. |
 | `cancelSweep` | `AbortSignal` on `SweepOptions`; completed rows remain readable. |
 | `getSweepSensitivity` | `Sweep.getSensitivity(objective?)`. |
 | `getSweepRunEquityCurve` | `Sweep.getEquityCurve(runIx, options?)`. |
-| `executeBacktest` | Internal execution stage of `executeBacktest()`; the SDK returns the completed result. |
+| `executeBacktest` | Internal execution stage of `executeBacktest()`; incompatible compiled strategies fail with `QTSExecutionError` and status `409`. |
 | `cancelBacktest` | `AbortSignal` on `BacktestOptions`. |
 | `getBacktestResult` | Internal polling stage of `executeBacktest()`; the job ID is workflow-owned. |
 | `createDataset` | `createDataset()` opens the first upload session. |
@@ -40,7 +40,7 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getDatasetUpload` | `getDatasetUpload(datasetId, uploadId)` reads ingestion state. |
 | `importDataset` | `importDataset(request)` starts a CEX history or DEX pool import and returns its accepted `cadence` when known. The plan selects allowed cadences and the default; excluded cadences return a non-retryable `402` with optional `upgradeUrl`. |
 | `getDatasetImport` | `getDatasetImport(datasetId, importId)` reads import progress. |
-| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom`, `sandbox`, and `sandboxMinutes`; previously promoted compilations start in `LIVE` by default, and the response reports effective warm-up and sandbox duration when present. |
+| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom`, `sandbox`, and `sandboxMinutes`; previously promoted compilations start in `LIVE` by default, and the response reports effective warm-up and sandbox duration when present. A `409` reports either an active run or an incompatible compiled strategy. |
 | `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` and `sandboxMinutes` when present. |
 | `stopLive` | `stopLive(strategyId)`. |
 | `listLive` | `listLive(query?)` lists all runs owned by the caller, including sandbox and stopped runs. |
