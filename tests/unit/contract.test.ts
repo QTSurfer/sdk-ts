@@ -8,6 +8,9 @@ import {
   QTSError,
   type AuthTokenResponse,
   type AuthTokenError,
+  type Account,
+  type AttachLiveSourceRequest,
+  type LiveAttachmentAccepted,
   type DatasetImportRequest,
   type InstrumentDetail,
   type KeyScopes,
@@ -30,6 +33,11 @@ function json(body: unknown, status = 200, headers?: HeadersInit): Response {
 }
 
 describe('OpenAPI contract through the generated transport', () => {
+  it('exposes optional API key expiry on token and account types', () => {
+    expectTypeOf<AuthTokenResponse['key_exp']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<Account['apiKeyExpiresAt']>().toEqualTypeOf<string | null | undefined>();
+  });
+
   it('accepts an empty scope map when the deployment permits token issuance', async () => {
     const token: AuthTokenResponse = {
       access_token: 'jwt-without-grants', token_type: 'Bearer', expires_in: 3600, tier: 'free', scopes: {},
@@ -133,6 +141,33 @@ describe('OpenAPI contract through the generated transport', () => {
     const sent = transport.mock.calls[0]?.[0];
     if (!(sent instanceof Request)) throw new Error('Expected a Request');
     expect(await sent.json()).toEqual(request);
+  });
+
+  it('attaches and detaches a live source through the authenticated client', async () => {
+    const request: AttachLiveSourceRequest = {
+      source: { venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker', instruments: ['ETH/USDT'] },
+      warmFrom: 120,
+      ref: 'alert-8841',
+    };
+    const attachment: LiveAttachmentAccepted = {
+      attachmentId: 'attachment-1', state: 'ATTACHING', effectiveAtMs: 1_758_330_015_000,
+    };
+    const detached: LiveAttachmentAccepted = { ...attachment, state: 'DETACHING' };
+    const transport = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json(attachment, 202))
+      .mockResolvedValueOnce(json(detached, 202));
+    const qts = new QTSurfer({ baseUrl, token: 'jwt', fetch: transport });
+
+    await expect(qts.attachLiveSource('run-1', request)).resolves.toEqual(attachment);
+    await expect(qts.detachLiveSource('run-1', 'attachment-1')).resolves.toEqual(detached);
+    expect(transport.mock.calls[0]?.[0]).toBeInstanceOf(Request);
+    const attachRequest = transport.mock.calls[0]?.[0];
+    if (!(attachRequest instanceof Request)) throw new Error('Expected an attach Request');
+    expect(attachRequest.url).toBe(`${baseUrl}/live/run-1/attachments`);
+    expect(await attachRequest.json()).toEqual(request);
+    const detachRequest = transport.mock.calls[1]?.[0];
+    if (!(detachRequest instanceof Request)) throw new Error('Expected a detach Request');
+    expect(detachRequest.url).toBe(`${baseUrl}/live/run-1/attachments/attachment-1`);
   });
 
   it('imports CEX history with the requested cadence and reports its discovered cadence', async () => {

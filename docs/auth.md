@@ -10,11 +10,12 @@ const qts = await authenticate(); // reads QTSURFER_APIKEY
 // Or: const qts = await authenticate('ak_...');
 ```
 
-An invalid, revoked, or expired key returns `401`. A deployment that requires scopes returns
-`403` with `apikey_without_scopes` for a key with none, and mints no token. The SDK raises
-`QTSAuthError` with the HTTP `status`, machine-readable `code`, and server instructions in its
-message. It does not automatically retry this rejection: create a key with at least one
-resource/action scope in the web app, then authenticate with that key.
+An invalid, revoked, missing, or expired key returns the same `401` response with
+`error: 'invalid_credentials'`; the server does not distinguish those causes. The SDK raises `QTSAuthError`
+with the HTTP `status` and the response body as `cause`. A deployment that requires scopes returns
+`403` with `apikey_without_scopes` for a key with none, and mints no token. It does not
+automatically retry either rejection: create a valid key with at least one resource/action scope,
+then authenticate with it.
 
 ```ts
 import { authenticate, QTSAuthError } from '@qtsurfer/sdk';
@@ -38,6 +39,21 @@ const qts = await authenticate(undefined, { baseUrl: 'https://api.qtsurfer.net/v
 
 Use `new QTSurfer({ baseUrl, token })` only when the application deliberately owns JWT refresh.
 It does not exchange API keys or refresh the supplied token.
+
+## When your API key expires
+
+An API key can expire independently of the JWT. When it does, `qts.token?.key_exp` is its expiry
+in seconds since epoch, and `qts.getAccount().apiKeyExpiresAt` reports the same moment in UTC.
+`key_exp` is absent and `apiKeyExpiresAt` is `null` when no key expiry applies. The JWT's own
+`expires_in` is unchanged: a token issued just before the key expires remains valid for its own
+remaining lifetime, but the expired key cannot mint another token. Rotate the key before
+`key_exp`.
+
+```ts
+const tokenExpiry = qts.token?.key_exp;
+if (tokenExpiry !== undefined) console.log(new Date(tokenExpiry * 1000));
+console.log((await qts.getAccount()).apiKeyExpiresAt);
+```
 
 ## Resource and action scopes
 

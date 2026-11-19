@@ -1,14 +1,14 @@
 # API coverage
 
-Measured against OpenAPI **0.128.54**: all 48 REST operation IDs are mapped below. Unless noted,
+Measured against OpenAPI **0.128.57**: all 50 REST operation IDs are mapped below. Unless noted,
 direct methods are available on both `QTSurfer` and `AuthenticatedClient`; the authenticated session
 refreshes its token once on `401`. `authenticate()` is a top-level helper. `Sweep` methods belong to
 the handle returned by `sweep()`, and cancellation is requested with an `AbortSignal`.
 
 | Operation | SDK surface or decision |
 | --- | --- |
-| `authenticate` | Top-level `authenticate()` exchanges the API key; `403 apikey_without_scopes` raises `QTSAuthError` without retrying or minting a token. |
-| `getAccount` | `getAccount()`; `Account.scopes` reports enforced resource/action grants and `maxSweepCartesian` the full-grid cap. |
+| `authenticate` | Top-level `authenticate()` exchanges the API key; `403 apikey_without_scopes` raises `QTSAuthError` without retrying or minting a token. `401 invalid_credentials` deliberately does not distinguish a missing, unknown, revoked, or expired key; the generated `AuthTokenRejected` body is retained as `QTSAuthError.cause`. |
+| `getAccount` | `getAccount()`; `Account.scopes` reports enforced resource/action grants, `maxSweepCartesian` the full-grid cap, and `apiKeyExpiresAt` the API key's expiry when applicable. |
 | `getAccountUsage` | `getAccountUsage()`. |
 | `listExchanges` | `getExchanges()`. |
 | `listInstruments` | `getInstruments(exchangeId)` for CEX, `getPools(exchangeId)` for DEX; default segment. |
@@ -40,17 +40,19 @@ the handle returned by `sweep()`, and cancellation is requested with an `AbortSi
 | `getDatasetUpload` | `getDatasetUpload(datasetId, uploadId)` reads ingestion state. |
 | `importDataset` | `importDataset(request)` starts a CEX history or DEX pool import and returns its accepted `cadence` when known. The plan selects allowed cadences and the default; excluded cadences return a non-retryable `402` with optional `upgradeUrl`. |
 | `getDatasetImport` | `getDatasetImport(datasetId, importId)` reads import progress. |
-| `startLive` | `startLive(strategyId, request)` accepts optional `warmFrom`, `sandbox`, and `sandboxMinutes`; previously promoted compilations start in `LIVE` by default, and the response reports effective warm-up and sandbox duration when present. A `409` reports either an active run or an incompatible compiled strategy. |
+| `startLive` | `startLive(strategyId, request)` accepts zero or one initial source plus optional `warmFrom`, `sandbox`, and `sandboxMinutes`; without a source the run waits until `attachLiveSource()` is called. A `409` reports either an active run or an incompatible compiled strategy. |
 | `getLive` | `getLive(strategyId)` reads the owner's current or most recent run, including a sandbox run and its effective `warmFrom` and `sandboxMinutes` when present. |
 | `stopLive` | `stopLive(strategyId)`. |
 | `listLive` | `listLive(query?)` lists all runs owned by the caller, including sandbox and stopped runs. |
 | `listPublicLive` | `listPublicLive(query?)` lists only public runs in `LIVE` and still running, including runs that started in that stage. |
-| `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs`, optional `stats`, `warmFrom`, and `sandboxMinutes` when present. |
+| `getLiveRun` | `getLiveRun(runId)` reads one owned run by id, including `updatedAtMs`, optional `stats`, `warmFrom`, `sandboxMinutes`, and source `attachments` when present. |
 | `updateLive` | `updateLive(runId, request)` changes mutable run metadata. |
 | `updateLiveParams` | `updateLiveParams(runId, request)` or `LiveConnection.updateParams(params)`. |
 | `rotateLiveStream` | `rotateLiveStream(runId)` replaces a run's secret plain-WebSocket URL. |
 | `revokeLiveStream` | `revokeLiveStream(runId)` permanently revokes that URL without stopping the run. |
 | `sendLiveCommand` | `sendLiveCommand(runId, request)` delivers transient strategy commands. |
+| `attachLiveSource` | `attachLiveSource(runId, request)` attaches a source to a waiting or running run and returns the accepted attachment transition; inspect `getLiveRun(runId).attachments` for later state. |
+| `detachLiveSource` | `detachLiveSource(runId, attachmentId)` requests detachment and returns `DETACHING`; inspect the run to observe `DETACHED`. |
 | `getLiveRunSignals` | `getLiveSignals(runId, query?)` and `getNextLiveSignals(runId, page)`. |
 | `getLiveRunPaper` | `getLiveRunPaper(runId)` reads simulated accounts and positions. |
 | `getLiveRunPaperEquity` | `getLiveRunPaperEquity(...)` returns the `LivePaperEquityCurve` shape; `getNextLiveRunPaperEquity(...)` retains curve filters and shaping options. Supports account equity and per-instrument `realisedPnl` / `totalPnl`. |

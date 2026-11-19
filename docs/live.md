@@ -6,18 +6,19 @@ Start with an authenticated session; every snippet below uses `qts`:
 import { authenticate, type StartLiveRequest } from '@qtsurfer/sdk';
 
 const qts = await authenticate(); // reads QTSURFER_APIKEY
-const cexSources: StartLiveRequest['sources'] = [{
+const cexSources: NonNullable<StartLiveRequest['sources']> = [{
   venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker', instruments: ['ETH/USDT'],
 }];
 ```
 
 ## Selecting sources
 
-`sources` is required and holds exactly one entry. Discover `venueType`, `exchange`, and
+At start, `sources` may contain one entry or be omitted. Discover `venueType`, `exchange`, and
 `segment` together from `getExchanges()`: choose `cex` or `dex`, the venue's id, and one of its
 `liveSegments`. A listed catalogue segment without live data is refused with `400`; for example,
 CEX `futures` is currently catalogue-only. Values and `type` are normalized to lower case;
-the server also accepts legacy `cx`/`dx`, but new typed requests use `cex`/`dex`.
+the server also accepts legacy `cx`/`dx`, but new typed requests use `cex`/`dex`. A run started
+without a source waits in `WAITING` and holds no live-run place until a source is attached.
 
 `startLive()` can throw `QTSError` with `status === 409` when the strategy was compiled against an
 older platform version and a release removed something it uses. No run is created in that case.
@@ -36,9 +37,10 @@ such as `*/USDT` or `BTC/*`.
 
 A DEX source reads exactly one pool: `type: 'kline'`, one `0x` plus 40-hex-digit pool address in
 `instruments`, and a chain/protocol from discovery. Today those are `robinhood` and `uniswap-v3`.
-The address is required; omitted instruments, wildcard selection, and multiple pools are refused.
-Use a kline strategy. Pool catalogues are available through `getPools()`; `id` is the address to
-send and `symbol` is the pair written into signals, which can differ from another site's ordering.
+The address is required; omitted instruments and wildcard selection are refused. Start with one
+pool, then attach other pools on the same chain and protocol with `attachLiveSource()`. Use a kline
+strategy. Pool catalogues are available through `getPools()`; `id` is the address to send and
+`symbol` is the pair written into signals, which can differ from another site's ordering.
 
 ```ts
 const dex = (await qts.getExchanges()).find((venue) => venue.venueType === 'dex');
@@ -59,6 +61,42 @@ protocol, or lack of capacity to follow another pool, ends the run within second
 `state: 'FAILED'`, `desired: 'STOPPED'`, and a public `reason`; it holds no active-run slot.
 Unsupported venue/exchange/protocol combinations are rejected at start with `400` instead.
 Treat unfamiliar failure sentences as failures rather than parsing their wording.
+
+## Attaching and detaching sources
+
+Attach a source to a waiting or already-running run. Sources active at the same time must share a
+market feed: the same exchange for CEX sources, or the same chain and protocol for DEX pools.
+`attachLiveSource()` returns `202` acceptance, not completion. Re-read the run with
+`getLiveRun(runId)` and inspect `attachments` until its state is `ATTACHED` or `REFUSED`. Supply
+`ref` if the caller might retry after a lost response; resending that reference for the same run
+returns the existing attachment. When attaching a second DEX pool, `warmFrom` must be `0` or
+omitted.
+
+```ts
+const waitingRun = await qts.startLive(strategyId, { relay: true });
+const accepted = await qts.attachLiveSource(waitingRun.runId, {
+  source: { venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker', instruments: ['ETH/USDT'] },
+  warmFrom: 120,
+  ref: 'alert-8841',
+});
+console.log(accepted.attachmentId, accepted.state, accepted.effectiveAtMs);
+
+const run = await qts.getLiveRun(waitingRun.runId);
+console.log(run.attachments?.find((item) => item.attachmentId === accepted.attachmentId)?.state);
+```
+
+An additional source takes effect at its `effectiveAtMs`; read the attachment state to know when
+it is active. If a DEX pool for a pair the run already reads cannot stay attached, it is detached
+with reason `SAME_PAIR`; the strategy's `onDetach` hook receives `REFUSED`.
+
+`detachLiveSource()` also returns an accepted transition (`DETACHING`). Re-read the run to observe
+`DETACHED`. Detaching the final source returns the run to `WAITING`, releases strategy memory, and
+keeps its paper accounts. Open paper positions in a detached source are reported as gaps.
+
+```ts
+const detached = await qts.detachLiveSource(run.runId, accepted.attachmentId);
+console.log(detached.state); // DETACHING
+```
 
 ## Warming up indicators
 

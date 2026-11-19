@@ -1,5 +1,13 @@
 # @qtsurfer/sdk
 
+## 0.29.0
+
+### Minor Changes
+
+- Expose API key expiry through the token and account types. Start a live run without a source, then attach or detach sources while it stays live; the SDK reports the accepted transition and lets callers inspect attachment state through `getLiveRun()`.
+- Document the generic `invalid_credentials` body for token `401` responses and expose it as the `QTSAuthError.cause` body.
+- Adopt `@qtsurfer/api-client` 0.31.0 for the OpenAPI 0.128.57 response and attachment types.
+
 ## 0.28.1
 
 ### Patch Changes

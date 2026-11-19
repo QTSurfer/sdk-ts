@@ -63,6 +63,8 @@ import {
 } from './workflows/sweep';
 import {
   LiveConnection,
+  attachLiveSource,
+  detachLiveSource,
   getLive,
   getLiveRun,
   getNextLiveSignals,
@@ -93,6 +95,8 @@ import type {
   LiveRunWithStream,
   LiveRunCompact,
   LiveSignal,
+  LiveAttachmentAccepted,
+  AttachLiveSourceRequest,
   LiveSignalPage,
   LivePaper,
   LivePaperEquityCurve,
@@ -181,6 +185,14 @@ export class QTSurfer {
 
   startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRunWithStream> {
     return startLive(strategyId, request);
+  }
+
+  attachLiveSource(runId: string, request: AttachLiveSourceRequest): Promise<LiveAttachmentAccepted> {
+    return attachLiveSource(runId, request);
+  }
+
+  detachLiveSource(runId: string, attachmentId: string): Promise<LiveAttachmentAccepted> {
+    return detachLiveSource(runId, attachmentId);
   }
 
   getLive(strategyId: string): Promise<LiveRunWithStream> {

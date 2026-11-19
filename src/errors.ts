@@ -133,10 +133,13 @@ function isNextCall(value: unknown): value is ErrorNextCall {
 }
 
 /**
- * Thrown by the `authenticate()` helper when the apikey is missing or the JWT
- * exchange fails. Invalid, revoked, or expired keys return `401`; a deployment
- * requiring scopes can return `403` / `apikey_without_scopes` without minting a
- * token. Create a key with at least one resource/action scope before trying again.
+ * Thrown by the `authenticate()` helper when the API key is missing or the JWT
+ * exchange fails. Invalid, revoked, missing, or expired keys return the same
+ * `401` response (`error: invalid_credentials`); inspect `cause` for the typed
+ * response body. A deployment requiring scopes can return `403` /
+ * `apikey_without_scopes` without minting a token. Create a valid key with at
+ * least one resource/action scope before trying again. An expiring key's
+ * `key_exp` is available on the successful token response.
  */
 export class QTSAuthError extends QTSError {
   constructor(message: string, cause?: unknown, status?: number) {

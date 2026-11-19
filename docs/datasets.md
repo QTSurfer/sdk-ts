@@ -43,6 +43,9 @@ the candles as bars at the version's own cadence. `type: 'ticker'` is the SDK de
 either ticker or candle datasets. A kline workflow over a dataset that is not `klines` fails with
 `400`. See [backtesting](backtesting.md#backtests-and-parameter-sweeps) for runnable examples. The
 CSV format and validation rules are defined in the API's [dataset reference](https://www.qtsurfer.com/docs/developers/api/datasets).
+The `timestamp` column accepts ISO dates and date-times plus numeric epoch seconds, milliseconds,
+or microseconds; a date-only value and a date-time without a zone are interpreted as UTC, and an
+explicit offset is honored. Day-first and month-first dates are ambiguous and are rejected.
 
 For another version, or to recover a lost creation response, open a session and repeat the same
 transfer/finalize flow. Repeating `openDatasetUpload` while a session is open is safe; a finalized

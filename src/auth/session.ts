@@ -71,6 +71,8 @@ import type { DownloadHourArgs } from '../client';
 import { getAccount as readAccount, getAccountUsage as readAccountUsage } from '../account';
 import {
   LiveConnection,
+  attachLiveSource,
+  detachLiveSource,
   getLive,
   getLiveRun,
   getLiveRunPaper,
@@ -94,6 +96,7 @@ import {
 import type {
   Account,
   AccountUsage,
+  AttachLiveSourceRequest,
   LiveListResponse,
   LivePaper,
   LivePaperEquityCurve,
@@ -107,6 +110,7 @@ import type {
   LiveStreamRevoked,
   LiveStreamUrl,
   LiveSignal,
+  LiveAttachmentAccepted,
   PublicLiveListResponse,
   StartLiveRequest,
   UpdateLiveParamsRequest,
@@ -239,6 +243,12 @@ export class AuthenticatedClient {
   getAccountUsage(): Promise<AccountUsage> { return this.withRefreshOn401(() => readAccountUsage()); }
   startLive(strategyId: string, request: StartLiveRequest): Promise<LiveRunWithStream> {
     return this.withRefreshOn401(() => startLive(strategyId, request));
+  }
+  attachLiveSource(runId: string, request: AttachLiveSourceRequest): Promise<LiveAttachmentAccepted> {
+    return this.withRefreshOn401(() => attachLiveSource(runId, request));
+  }
+  detachLiveSource(runId: string, attachmentId: string): Promise<LiveAttachmentAccepted> {
+    return this.withRefreshOn401(() => detachLiveSource(runId, attachmentId));
   }
   getLive(strategyId: string): Promise<LiveRunWithStream> { return this.withRefreshOn401(() => getLive(strategyId)); }
   getLiveRun(runId: string): Promise<LiveRunDetail> { return this.withRefreshOn401(() => getLiveRun(runId)); }

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
-import type { LiveRunDetail, LiveRunWithStream, StartLiveRequest } from '@qtsurfer/api-client';
+import type { AttachLiveSourceRequest, LiveRunDetail, LiveRunWithStream, StartLiveRequest } from '@qtsurfer/api-client';
 
 const apiSendLiveCommand = vi.fn();
+const apiAttachLiveSource = vi.fn();
+const apiDetachLiveSource = vi.fn();
 const apiStartLive = vi.fn();
 const apiGetLive = vi.fn();
 const apiGetLiveRun = vi.fn();
@@ -12,6 +14,8 @@ const apiRevokeLiveStream = vi.fn();
 vi.mock('@qtsurfer/api-client', () => ({
   withNetworkFailoverFetch: (fetchImpl?: typeof fetch) => fetchImpl ?? fetch,
   sendLiveCommand: apiSendLiveCommand,
+  attachLiveSource: apiAttachLiveSource,
+  detachLiveSource: apiDetachLiveSource,
   startLive: apiStartLive,
   getLive: apiGetLive,
   getLiveRun: apiGetLiveRun,
@@ -25,6 +29,8 @@ const ok = <T>(data: T, status = 202) => ({ data, error: undefined, response: { 
 describe('live commands', () => {
   beforeEach(() => {
     apiSendLiveCommand.mockReset();
+    apiAttachLiveSource.mockReset();
+    apiDetachLiveSource.mockReset();
     apiStartLive.mockReset();
     apiGetLive.mockReset();
     apiGetLiveRun.mockReset();
@@ -42,7 +48,7 @@ describe('live commands', () => {
     expectTypeOf<LiveRunWithStream['sandboxMinutes']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<LiveRunDetail['warmFrom']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<LiveRunDetail['sandboxMinutes']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<StartLiveRequest['sources'][number]['instruments']>().toEqualTypeOf<string[] | undefined>();
+    expectTypeOf<NonNullable<StartLiveRequest['sources']>[number]['instruments']>().toEqualTypeOf<string[] | undefined>();
 
     const request = {
       sources: [{ venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker' }],
@@ -56,9 +62,32 @@ describe('live commands', () => {
     await expect(startLive('strategy-1', request)).resolves.toEqual(started);
     expect(apiStartLive).toHaveBeenCalledWith({ path: { strategyId: 'strategy-1' }, body: request });
 
+    apiStartLive.mockResolvedValueOnce(ok({ runId: 'waiting-run', state: 'WAITING', sources: [] }, 201));
+    await expect(startLive('strategy-1', {})).resolves.toMatchObject({ state: 'WAITING', sources: [] });
+    expect(apiStartLive).toHaveBeenLastCalledWith({ path: { strategyId: 'strategy-1' }, body: {} });
+
     const historical = { runId: 'old-run' };
     apiGetLive.mockResolvedValueOnce(ok(historical, 200));
     await expect(getLive('strategy-1')).resolves.toEqual(historical);
+  });
+
+  it('attaches and detaches a live source and returns the accepted transition', async () => {
+    const { attachLiveSource, detachLiveSource } = await import('../../src/live');
+    const request: AttachLiveSourceRequest = {
+      source: { venueType: 'cex', exchange: 'binance', segment: 'spot', type: 'ticker', instruments: ['ETH/USDT'] },
+      warmFrom: 120,
+      ref: 'alert-8841',
+    };
+    const attaching = { attachmentId: 'attachment-1', state: 'ATTACHING', effectiveAtMs: 1_758_330_015_000 } as const;
+    apiAttachLiveSource.mockResolvedValueOnce(ok(attaching));
+
+    await expect(attachLiveSource('run-1', request)).resolves.toEqual(attaching);
+    expect(apiAttachLiveSource).toHaveBeenCalledWith({ path: { runId: 'run-1' }, body: request });
+
+    const detaching = { ...attaching, state: 'DETACHING' } as const;
+    apiDetachLiveSource.mockResolvedValueOnce(ok(detaching));
+    await expect(detachLiveSource('run-1', 'attachment-1')).resolves.toEqual(detaching);
+    expect(apiDetachLiveSource).toHaveBeenCalledWith({ path: { runId: 'run-1', attachmentId: 'attachment-1' } });
   });
 
   it('reads a run by id with its freshness and statistics', async () => {

@@ -440,7 +440,7 @@ cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.54**: all 48 REST operations are represented. The operation-by-
+Measured against API spec **0.128.57**: all 50 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 

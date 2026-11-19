@@ -5,6 +5,8 @@ import {
   getLiveRunPaper as apiGetLiveRunPaper,
   getLiveRunPaperEquity as apiGetLiveRunPaperEquity,
   getLiveRunSignals as apiGetLiveRunSignals,
+  attachLiveSource as apiAttachLiveSource,
+  detachLiveSource as apiDetachLiveSource,
   sendLiveCommand as apiSendLiveCommand,
   listPublicLive as apiListPublicLive,
   listLive as apiListLive,
@@ -31,6 +33,8 @@ import {
   type LiveListResponse,
   type PublicLiveListResponse,
   type StartLiveRequest,
+  type AttachLiveSourceRequest,
+  type LiveAttachmentAccepted,
   type UpdateLiveParamsRequest,
   type UpdateLiveRequest,
 } from '@qtsurfer/api-client';
@@ -92,6 +96,37 @@ export async function startLive(strategyId: string, request: StartLiveRequest): 
   const { data, error, response } = await apiStartLive({ path: { strategyId }, body: request });
   if (error) throw requestFailed('start live call', error, response?.status);
   if (!data) throw new QTSError('Empty start-live response');
+  return data;
+}
+
+/**
+ * Attach a source to a waiting or running live run. The `202` confirms
+ * acceptance, not that the source is already attached; read the run's
+ * `attachments` with {@link getLiveRun} to follow its state. Reuse `ref` when
+ * retrying an ambiguous request so the API returns the same attachment.
+ */
+export async function attachLiveSource(
+  runId: string,
+  request: AttachLiveSourceRequest,
+): Promise<LiveAttachmentAccepted> {
+  const { data, error, response } = await apiAttachLiveSource({ path: { runId }, body: request });
+  if (error) throw requestFailed('attach live source call', error, response?.status);
+  if (!data) throw new QTSError('Empty attach-live-source response');
+  return data;
+}
+
+/**
+ * Detach one source without stopping the run. The `202` confirms acceptance;
+ * read the run's `attachments` with {@link getLiveRun} to follow it to
+ * `DETACHED`.
+ */
+export async function detachLiveSource(
+  runId: string,
+  attachmentId: string,
+): Promise<LiveAttachmentAccepted> {
+  const { data, error, response } = await apiDetachLiveSource({ path: { runId, attachmentId } });
+  if (error) throw requestFailed('detach live source call', error, response?.status);
+  if (!data) throw new QTSError('Empty detach-live-source response');
   return data;
 }
 

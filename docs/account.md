@@ -31,6 +31,10 @@ lacks a required `resource:action`; the SDK error exposes it as `code` and `requ
 key's grants and refresh the token before retrying. Token issuance can also reject a key with no
 scopes. See [authentication](auth.md#resource-and-action-scopes).
 
+`apiKeyExpiresAt` is the API key's expiry in UTC, or `null` when no key expiry applies. It is the
+same moment as `key_exp` on the token response. Rotate an expiring key before that time; the
+token's `expires_in` is independent. See [authentication](auth.md#when-your-key-expires).
+
 ## Read current usage
 
 `getAccountUsage()` returns resource counts plus dataset, strategy, signal, and total storage use.
