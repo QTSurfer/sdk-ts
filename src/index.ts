@@ -8,6 +8,11 @@ export { QTSurfer, type QTSurferOptions, type DownloadHourArgs } from './client'
 export { getAccount, getAccountUsage } from './account';
 export type { Account, AccountUsage, AuthTokenResponse, AuthTokenError, AuthTokenRejected, InsufficientScopeError, KeyScopes, ErrorNextCall, ResponseError, PlanRequiredError, SandboxMinutes } from '@qtsurfer/api-client';
 export type {
+  CexImportInstrumentUsage,
+  Collection,
+  CollectionCreateRequest,
+  CollectionDeleted,
+  CollectionUpdateRequest,
   DatasetVersion,
   DatasetImportCexRequest,
   DatasetImportDexRequest,
@@ -16,6 +21,9 @@ export type {
   PoolListResponse,
   LiveSource,
   LiveSourceRequest,
+  LiveSignalInstrument,
+  StrategyLanguage,
+  StrategyName,
 } from '@qtsurfer/api-client';
 export {
   DEFAULT_LIVE_URL,
@@ -121,6 +129,7 @@ export type {
   DatasetImport,
   DatasetImportRequest,
   DatasetImportState,
+  DatasetListOptions,
   DatasetUpload,
   DatasetUploadSession,
   DatasetUploadState,

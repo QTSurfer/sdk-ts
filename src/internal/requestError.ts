@@ -11,6 +11,7 @@ import { QTSError } from '../errors';
  * @param what short description of the call, e.g. `'exchanges call'`
  * @param error the api-client error payload
  * @param status HTTP status of the failing response
+ * @param retryAfter server-provided Retry-After value
  *
  * @internal
  */
@@ -18,9 +19,10 @@ export function requestFailed(
   what: string,
   error: unknown,
   status?: number,
+  retryAfter?: string,
 ): QTSError {
   const prefix = status === undefined ? '' : `HTTP ${status} — `;
-  return new QTSError(`${what} failed: ${prefix}${describe(error)}`, error, status);
+  return new QTSError(`${what} failed: ${prefix}${describe(error)}`, error, status, retryAfter);
 }
 
 function describe(error: unknown): string {

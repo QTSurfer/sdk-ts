@@ -173,6 +173,7 @@ describe('OpenAPI contract through the generated transport', () => {
   it('imports CEX history with the requested cadence and reports its discovered cadence', async () => {
     const request: DatasetImportRequest = {
       name: 'BTC history', instrument: 'BTC/USDT', type: 'cex', cadence: '8h',
+      collectionId: 'dc_1', meta: { 'user.note': 'benchmark' },
       from: '2026-09-01T00:00:00Z', to: '2026-09-02T00:00:00Z',
       cex: { exchange: 'binance', segment: 'spot', dataType: 'klines' },
     };
@@ -185,6 +186,40 @@ describe('OpenAPI contract through the generated transport', () => {
     const sent = transport.mock.calls[0]?.[0];
     if (!(sent instanceof Request)) throw new Error('Expected a Request');
     expect(await sent.json()).toEqual(request);
+  });
+
+  it('lists a collection and moves a dataset back to the root with JSON null', async () => {
+    const collection = { collectionId: 'dc_1', name: 'Majors', datasetCount: 1 };
+    const dataset = { datasetId: 'ds_1' };
+    const transport = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ collections: [collection] }))
+      .mockResolvedValueOnce(json({ datasets: [dataset] }))
+      .mockResolvedValueOnce(json(dataset));
+    const qts = new QTSurfer({ baseUrl, fetch: transport });
+
+    await expect(qts.getCollections()).resolves.toEqual([collection]);
+    await expect(qts.getDatasets({ collectionId: 'dc_1', includeDeleted: true })).resolves.toEqual([dataset]);
+    await expect(qts.moveDataset('ds_1', null)).resolves.toEqual(dataset);
+    const [, [listRequest], [moveRequest]] = transport.mock.calls;
+    if (!(listRequest instanceof Request) || !(moveRequest instanceof Request)) {
+      throw new Error('Expected Request objects');
+    }
+    const query = new URL(listRequest.url).searchParams;
+    expect(query.get('collectionId')).toBe('dc_1');
+    expect(query.get('includeDeleted')).toBe('true');
+    expect(moveRequest.method).toBe('PATCH');
+    expect(await moveRequest.json()).toEqual({ collectionId: null });
+  });
+
+  it('preserves the import retry delay for concurrent limits', async () => {
+    const qts = new QTSurfer({ baseUrl, fetch: vi.fn<typeof fetch>().mockResolvedValue(json({
+      code: 429, message: 'An import is already running', reason: 'IMPORT_CONCURRENT_LIMIT', retryable: true,
+    }, 429, { 'Retry-After': '45' })) });
+    await expect(qts.importDataset({
+      name: 'BTC history', instrument: 'BTC/USDT', type: 'cex',
+      from: '2026-09-01T00:00:00Z', to: '2026-09-02T00:00:00Z',
+      cex: { exchange: 'binance', segment: 'spot', dataType: 'klines' },
+    })).rejects.toMatchObject({ status: 429, reason: 'IMPORT_CONCURRENT_LIMIT', retryable: true, retryAfter: '45' });
   });
 
   it('returns untouched Lastra bytes and provisional metadata, with no markers on a stored hour', async () => {

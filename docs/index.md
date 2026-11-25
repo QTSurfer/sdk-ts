@@ -8,6 +8,7 @@ The generated [TypeDoc API reference](js/index.html) documents every exported ty
 - [Market data: exchanges, instruments, and downloads](market_data.md)
 - [Strategies and validation](strategy.md)
 - [Backtests and parameter sweeps](backtesting.md)
-- [Dataset uploads](datasets.md)
+- [Datasets and collections](datasets.md)
 - [Live Execution](live.md)
+- [Signal channels](signals.md)
 - [API coverage](api-coverage.md)

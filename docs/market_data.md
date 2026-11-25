@@ -31,23 +31,22 @@ exchange's first segment. A mismatch between the method and returned `meta.venue
 const dex = exchanges.find((exchange) => exchange.venueType === 'dex');
 if (dex) {
   const pools = await qts.getPools(dex.id, dex.segments[0]);
-  console.log(pools[0]?.id, pools[0]?.symbol); // address for live input, pair for output signals
+  console.log(pools[0]?.id, pools[0]?.symbol); // pool address and trading pair
 }
 ```
 
-The pool list holds the 50 most traded pools with at least USD 10,000 liquidity, refreshed hourly.
-It is a starting point: an unlisted pool can still run. Pools expose token addresses, fee tier,
-USD liquidity and volume; `volume24h` is in quote tokens. Pool price and volume can be an hour old;
-CEX figures refresh every few minutes. Unknown `lastPrice`, `volume24h`, and pool `createdAt` are
-absent, never `null`. The SDK unwraps both catalogues, so metadata and HAL links are available
+Solana pool catalogues return base58 addresses. Keep them as listed, including case. EVM addresses
+are normalized to lowercase. Pool entries expose token addresses, liquidity in USD, volume in
+quote tokens, and the fee tier when known. Unknown values are omitted.
+The SDK unwraps both catalogues, so `meta.updatedAt`, `meta.limit`, `meta.minTvlUsd` and HAL links are available
 through the generated client's `InstrumentCatalogueResponse` when needed. Unknown exchange or
 segment returns `400`; an unavailable catalogue returns `404`.
 
 ## Hourly downloads
 
 Download one CEX instrument-hour as a `Blob`. `exchangeId`, `base`, `quote`, and `hour` are
-required; `hour` is `YYYY-MM-DDTHH` UTC, without minutes or a timezone suffix. Choose an hour that
-started no more than seven days ago. Lastra is the default; `format: 'parquet'` requests Parquet.
+required. Use `YYYY-MM-DDTHH` in UTC for `hour`, without minutes or a timezone suffix. Lastra is the
+default. Use `format: 'parquet'` to request Parquet.
 
 ```ts
 // A recent completed hour, rather than a calendar date that will expire.

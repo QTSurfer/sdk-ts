@@ -1,5 +1,13 @@
 # @qtsurfer/sdk
 
+## 0.30.0
+
+### Minor Changes
+
+- Organize datasets with `createCollection`, `getCollections`, `getCollection`, `updateCollection`, `deleteCollection`, and `moveDataset`. Filter datasets by collection with `getDatasets`, or pass `collectionId: 'none'` for the root.
+- Inspect CEX import quotas and provenance. When an import hits the concurrent limit, `QTSError.retryAfter` exposes the delay sent by the server.
+- Read strategy names and languages, attach Solana tokens by mint, and recover strategy detach records through REST signal history. On a waiting run, parameter updates store values for the next source and their replies omit `effectiveAtMs`.
+
 ## 0.29.0
 
 ### Minor Changes

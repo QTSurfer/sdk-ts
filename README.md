@@ -20,8 +20,9 @@ The hand-written guides mirror the SDK family structure. TypeDoc remains the gen
 - [Market data: exchanges, instruments, and downloads](docs/market_data.md)
 - [Strategies and validation](docs/strategy.md)
 - [Backtests and parameter sweeps](docs/backtesting.md)
-- [Dataset uploads](docs/datasets.md)
+- [Datasets and collections](docs/datasets.md)
 - [Live Execution](docs/live.md)
+- [Signal channels](docs/signals.md)
 - [API coverage](docs/api-coverage.md)
 
 ## Installation
@@ -305,10 +306,9 @@ unwraps it and hands you the array. That also means `meta.segment` never reaches
 certainty about which segment you are looking at, pass `segment` explicitly instead of relying on
 the default.
 
-Discover `Exchange.venueType`, `segments`, and `liveSegments` first. `getInstruments()` retains its
-CEX instrument array; `getPools()` returns typed DEX pools, whose `id` is the address to put in a
-single-pool kline [live source](docs/live.md#dex-pools). Unknown price, volume, and pool creation
-dates are absent rather than `null`.
+Discover `Exchange.venueType`, `segments`, and `liveSegments` first. `getInstruments()` returns CEX
+instruments and `getPools()` returns typed DEX pools. For an EVM live source, use the pool address.
+For `solana/pumpfun`, use the token mint as described in [Live Execution](docs/live.md#dex-pools).
 
 ## Strategy validation
 
@@ -440,7 +440,7 @@ cadence defaults, and asynchronous failures.
 
 ## API coverage
 
-Measured against API spec **0.128.57**: all 50 REST operations are represented. The operation-by-
+Measured against API spec **0.128.70**: all 78 REST operations are represented. The operation-by-
 operation mapping identifies direct SDK methods, workflow-owned stages, and deliberate internal
 operations in [API coverage](docs/api-coverage.md).
 

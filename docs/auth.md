@@ -88,7 +88,8 @@ try {
 }
 ```
 
-Resource names are `exchanges`, `market_data`, `strategies`, `backtests`, `datasets`, and `live`.
+Resource names are `exchanges`, `market_data`, `strategies`, `backtests`, `datasets`, `live`, and
+`signals`. Dataset collections use `datasets:read` for lookups and `datasets:write` for changes.
 The API's [authentication guide](https://github.com/QTSurfer/qtsurfer-api/blob/main/docs/auth.md)
 maps each operation to its future required action. Token grants reflect the key when the JWT was
 issued; call `qts.refresh()` after changing the key's grants to see them immediately.

@@ -29,15 +29,21 @@ import {
   type DownloadResult,
 } from '../workflows/downloads';
 import {
+  createCollection,
   createDataset,
+  deleteCollection,
   deleteDataset,
   finalizeDatasetUpload,
   getDatasetImport,
+  getCollection,
+  getCollections,
   getDataset,
   getDatasetUpload,
   listDatasets,
   importDataset,
+  moveDataset,
   openDatasetUpload,
+  updateCollection,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
@@ -45,10 +51,12 @@ import {
   type DatasetImport,
   type DatasetImportRequest,
   type DatasetImportState,
+  type DatasetListOptions,
   type DatasetUpload,
   type DatasetUploadSession,
   type DatasetUploadState,
 } from '../workflows/datasets';
+import type { Collection, CollectionCreateRequest, CollectionDeleted, CollectionUpdateRequest } from '@qtsurfer/api-client';
 import {
   compileStrategy,
   getStrategy,
@@ -399,13 +407,13 @@ export class AuthenticatedClient {
     return this.withRefreshOn401(() => compileStrategy(source));
   }
 
-  /** List owned datasets; `includeDeleted: true` includes deleted rows with `deletedAt`. Refreshes once on 401. */
-  getDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+  /** List owned datasets, optionally filtered by collection and deletion status. */
+  getDatasets(options?: DatasetListOptions): Promise<Dataset[]> {
     return this.withRefreshOn401(() => listDatasets(options));
   }
 
   /** @deprecated Use {@link AuthenticatedClient.getDatasets}. */
-  listDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+  listDatasets(options?: DatasetListOptions): Promise<Dataset[]> {
     return this.getDatasets(options);
   }
 
@@ -432,6 +440,36 @@ export class AuthenticatedClient {
   /** Soft-delete a dataset. Refreshes once on 401. */
   deleteDataset(datasetId: string): Promise<void> {
     return this.withRefreshOn401(() => deleteDataset(datasetId));
+  }
+
+  /** Move a dataset to a collection, or pass `null` to move it to the root. */
+  moveDataset(datasetId: string, collectionId: string | null): Promise<DatasetDetail> {
+    return this.withRefreshOn401(() => moveDataset(datasetId, collectionId));
+  }
+
+  /** List owned collections with their dataset counts. */
+  getCollections(): Promise<Collection[]> {
+    return this.withRefreshOn401(() => getCollections());
+  }
+
+  /** Read a collection and its dataset counts. */
+  getCollection(collectionId: string): Promise<Collection> {
+    return this.withRefreshOn401(() => getCollection(collectionId));
+  }
+
+  /** Create a collection with the given name and description. */
+  createCollection(request: CollectionCreateRequest): Promise<Collection> {
+    return this.withRefreshOn401(() => createCollection(request));
+  }
+
+  /** Rename a collection or change its description. */
+  updateCollection(collectionId: string, request: CollectionUpdateRequest): Promise<Collection> {
+    return this.withRefreshOn401(() => updateCollection(collectionId, request));
+  }
+
+  /** Delete a collection and return its datasets to the root. */
+  deleteCollection(collectionId: string): Promise<CollectionDeleted> {
+    return this.withRefreshOn401(() => deleteCollection(collectionId));
   }
 
   /** PUT raw CSV bytes to the upload session's presigned URL. */

@@ -35,6 +35,12 @@ scopes. See [authentication](auth.md#resource-and-action-scopes).
 same moment as `key_exp` on the token response. Rotate an expiring key before that time; the
 token's `expires_in` is independent. See [authentication](auth.md#when-your-key-expires).
 
+For [dataset imports](datasets.md#importing-market-history), `maxImportRangeHours` limits a DEX
+pool's range and `maxCexImportRangeHours` limits a CEX market's range. `maxConcurrentImports`
+counts queued or running imports of either type. `maxCexHistoryDays` bounds how far back a CEX
+import may start, and `maxCexImportInstrumentsPerMonth` limits distinct instruments per market
+each UTC calendar month.
+
 ## Read current usage
 
 `getAccountUsage()` returns resource counts plus dataset, strategy, signal, and total storage use.
@@ -42,6 +48,7 @@ token's `expires_in` is independent. See [authentication](auth.md#when-your-key-
 ```ts
 const usage = await qts.getAccountUsage();
 console.log(`signals use ${usage.signalBytesUsed} of ${usage.storageBytesUsed} bytes`);
+console.log(usage.cexImportMonth, usage.cexImportInstruments);
 ```
 
 Datasets, registered strategies, and retained execution signals share one storage pool. Check usage

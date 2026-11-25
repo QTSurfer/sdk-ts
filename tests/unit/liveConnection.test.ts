@@ -77,6 +77,18 @@ describe('LiveConnection signal history', () => {
     expect(connection.history).toHaveBeenLastCalledWith({ limit: 0, since: undefined });
   });
 
+  it('accepts a parameter update without an effective time on a waiting run', async () => {
+    const { LiveConnection } = await import('../../src/live');
+    const live = await LiveConnection.connect('run-1', { onSignal: vi.fn() }, async () => 'token');
+    connection.rpc.mockResolvedValue({ data: { runId: 'run-1', paramsVersion: 3 } });
+
+    const result = await live.updateParams({ emaFastPeriod: '12' });
+
+    expect(connection.rpc).toHaveBeenCalledWith('live.params', { runId: 'run-1', params: { emaFastPeriod: '12' } });
+    expect(result.paramsVersion).toBe(3);
+    expect(result.effectiveAtMs).toBeUndefined();
+  });
+
   it('preserves protocol errors when a position is lost or subscription is absent', async () => {
     const { LiveConnection } = await import('../../src/live');
     const live = await LiveConnection.connect('run-1', { onSignal: vi.fn() }, async () => 'token');

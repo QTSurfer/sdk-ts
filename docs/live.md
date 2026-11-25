@@ -35,32 +35,25 @@ such as `*/USDT` or `BTC/*`.
 
 ## DEX pools
 
-A DEX source reads exactly one pool: `type: 'kline'`, one `0x` plus 40-hex-digit pool address in
-`instruments`, and a chain/protocol from discovery. Today those are `robinhood` and `uniswap-v3`.
-The address is required; omitted instruments and wildcard selection are refused. Start with one
-pool, then attach other pools on the same chain and protocol with `attachLiveSource()`. Use a kline
-strategy. Pool catalogues are available through `getPools()`; `id` is the address to send and
-`symbol` is the pair written into signals, which can differ from another site's ordering.
+A DEX source uses `type: 'kline'` and exactly one identifier in `instruments`. For an EVM
+market, pass a pool address. For `solana/pumpfun`, pass the token's case-sensitive base58 mint
+address. That segment follows a token from its bonding curve to its PumpSwap pool. Discover live
+availability with `getExchanges()`. Solana pool listings from `getPools()` are useful for
+[dataset imports](datasets.md#importing-market-history). The `pumpfun` segment has no listing.
 
 ```ts
-const dex = (await qts.getExchanges()).find((venue) => venue.venueType === 'dex');
-if (!dex || !dex.liveSegments[0]) throw new Error('No live DEX protocol available');
-const pools = await qts.getPools(dex.id, dex.liveSegments[0]);
-const pool = pools[0];
-if (!pool) throw new Error('No pool currently listed');
-const poolRun = await qts.startLive(klineStrategyId, {
-  sources: [{ venueType: 'dex', exchange: dex.id, segment: dex.liveSegments[0], type: 'kline', instruments: [pool.id] }],
+const solana = (await qts.getExchanges()).find((venue) => venue.id === 'solana');
+if (!solana?.liveSegments.includes('pumpfun')) throw new Error('Solana token live feed unavailable');
+const tokenRun = await qts.startLive(klineStrategyId, {
+  sources: [{ venueType: 'dex', exchange: 'solana', segment: 'pumpfun', type: 'kline', instruments: [mintAddress] }],
   warmFrom: 0,
 });
 ```
 
-The strategy receives one candle per second. A second without swaps is a flat candle carrying the
-previous close. A newly followed pool can have no earlier feed to replay, so warm-up cannot invent
-history. A pool outside the top catalogue can still run. An address that is not a pool of its
-protocol, or lack of capacity to follow another pool, ends the run within seconds with
-`state: 'FAILED'`, `desired: 'STOPPED'`, and a public `reason`; it holds no active-run slot.
-Unsupported venue/exchange/protocol combinations are rejected at start with `400` instead.
-Treat unfamiliar failure sentences as failures rather than parsing their wording.
+The strategy receives one candle per second, carrying forward the previous close when there is no
+trade. Warm-up requires available history. A source can fail to start if the pool or mint cannot
+be served. Read the run and attachment state and reason. A DEX signal's `instrument.id` gives the
+pool address or token mint, which identifies the feed even when tickers share a symbol.
 
 ## Attaching and detaching sources
 
@@ -70,7 +63,9 @@ market feed: the same exchange for CEX sources, or the same chain and protocol f
 `getLiveRun(runId)` and inspect `attachments` until its state is `ATTACHED` or `REFUSED`. Supply
 `ref` if the caller might retry after a lost response; resending that reference for the same run
 returns the existing attachment. When attaching a second DEX pool, `warmFrom` must be `0` or
-omitted.
+omitted. A run using `paper.accounts: 'instrument'` needs explicit instrument names.
+For DEX, `resolveInstrument: true` (default) resolves the pair from the first candle before
+calling `onAttach`. Set it to `false` to call the hook immediately with a stand-in instrument.
 
 ```ts
 const waitingRun = await qts.startLive(strategyId, { relay: true });
@@ -98,11 +93,14 @@ const detached = await qts.detachLiveSource(run.runId, accepted.attachmentId);
 console.log(detached.state); // DETACHING
 ```
 
+A strategy can also detach from a source itself. The attachment ends `DETACHED` with reason
+`STRATEGY`. Use `getLiveSignals(runId, { type: 'system' })` to read its `DETACH` records. System
+signals require this explicit REST filter and are excluded from WebSocket delivery.
+
 ## Warming up indicators
 
 Set `warmFrom` when starting a run to replay up to 3,600 seconds of market history before its start. It is an
-integer from `0` to `3600`; `0` disables replay. If omitted, the platform chooses the beginning of the current
-15-minute block (0–900 seconds back), so the first bar of a 15-minute window is complete. The effective value is
+integer from `0` to `3600`. Set `0` to disable replay. If omitted, the platform chooses how far back to replay. The effective value is
 returned as `warmFrom` by `startLive()`, `getLive()`, and `getLiveRun()`. It is optional and never `null`: it is
 absent only on historical runs started before this field existed.
 
@@ -154,10 +152,14 @@ const connection = await qts.connectLive(run.runId, {
   },
 });
 
-await connection.updateParams({ emaFastPeriod: '12' });
+const params = await connection.updateParams({ emaFastPeriod: '12' });
+console.log(params.paramsVersion, params.effectiveAtMs);
 connection.disconnect();
 await qts.stopLive(strategyId);
 ```
+
+`updateLiveParams(runId, { params })` is the REST equivalent of `connection.updateParams(params)`.
+On a waiting run, both store the change for the first source and omit `effectiveAtMs`.
 
 The first run of a compiled strategy starts in the `SANDBOX` stage. After one of your runs has
 passed the trial and been promoted, later runs of that same compiled strategy start in `LIVE` at once,
@@ -173,19 +175,19 @@ passed its first trial. The default is `false`.
 
 Set `relay: true` to receive WebSocket signals from the run's first signal, including during
 `SANDBOX`; only the owner can subscribe during that trial. The same subscription continues after
-promotion; the transition can be quiet for several minutes, then signals produced meanwhile arrive
-in order. REST retained signal history is readable in either stage, whether or not relay was enabled.
+promotion. The transition can be quiet before signals produced in the meantime arrive in order.
+REST retained signal history is readable in either stage, whether or not relay was enabled.
 A reconnect does not replay missed signals, so use `connection.getSignalHistory()` for recent sandbox
 signals held by the subscribed WebSocket channel, or `QTSurfer.getLiveSignals()` for the longer-lived
 REST history in either stage. A run that starts directly in `LIVE` does not retain WebSocket history;
 use `sandbox: true` when you need that history.
-The WebSocket channel holds at most the 300 most recent sandbox signals, until five minutes after
-the last sandbox signal; it never holds live-stage signals. Subscribe first, then read history to
+The WebSocket channel holds a limited number of sandbox signals for a limited time. Live-stage
+signals are available from REST history. Subscribe first, then read history to
 catch signals produced before the subscription. Signals received through `onSignal` can overlap
 the history reply, so deduplicate by `signalId`.
 
 ```ts
-const history = await connection.getSignalHistory(); // defaults to limit 300, oldest first
+const history = await connection.getSignalHistory(); // requests up to 300 signals, oldest first
 for (const { data: signal, offset } of history.publications) {
   console.log(signal.signalId, offset);
 }

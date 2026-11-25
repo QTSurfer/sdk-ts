@@ -7,6 +7,8 @@ import {
   getStrategyCode as apiGetStrategyCode,
   type StrategyState as ApiStrategyState,
   type StrategySummary as ApiStrategySummary,
+  type StrategyLanguage,
+  type StrategyName,
   type DeclaredProperty,
 } from '@qtsurfer/api-client';
 import { QTSError } from '../errors';
@@ -49,6 +51,10 @@ export type StrategyState = ApiStrategyState;
 /** Result of compiling source, including parameters and required plan capabilities. */
 export interface CompiledStrategy {
   strategyId: string;
+  /** Name declared by the source, when available. */
+  name?: StrategyName;
+  /** Language detected at registration. */
+  language?: StrategyLanguage;
   declaredProperties?: DeclaredProperty[];
   /** Required platform capabilities, e.g. `indicators.pro`; absent on older API responses. */
   requires?: Array<'indicators.pro'>;

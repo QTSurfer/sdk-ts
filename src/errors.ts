@@ -26,7 +26,13 @@ export class QTSError extends Error {
   readonly retryable?: boolean;
   /** Plan-management page supplied for a `402` refusal, when available. */
   readonly upgradeUrl?: string;
-  constructor(message: string, readonly cause?: unknown, status?: number) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+    status?: number,
+    /** Server-provided Retry-After value, when available. */
+    readonly retryAfter?: string,
+  ) {
     super(message);
     this.name = 'QTSError';
     if (status !== undefined) this.status = status;
@@ -113,13 +119,10 @@ export class QTSCanceledError extends QTSError {
 export class QTSDownloadError extends QTSError {
   /** Raw response headers, when a response was received. */
   readonly headers?: Headers;
-  /** Server-provided delay, in seconds. Absent when no delay was given. */
-  readonly retryAfter?: string;
   constructor(message: string, cause?: unknown, status?: number, headers?: Headers) {
-    super(message, cause, status);
+    super(message, cause, status, headers?.get('Retry-After') ?? undefined);
     this.name = 'QTSDownloadError';
     this.headers = headers;
-    this.retryAfter = headers?.get('Retry-After') ?? undefined;
   }
 }
 

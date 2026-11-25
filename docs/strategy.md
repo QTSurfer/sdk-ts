@@ -8,8 +8,9 @@ import { authenticate } from '@qtsurfer/sdk';
 const qts = await authenticate(); // reads QTSURFER_APIKEY
 ```
 
-`compileStrategy` registers Java source and returns its `strategyId`. Validate before an expensive
-run: validation loads the class and drives a bounded synthetic series.
+`compileStrategy` registers Java or QTScript source and returns its `strategyId`. Registration,
+lookup, and listing report the strategy's declared `name` when available and its `language` (`java`
+or `qtscript`). Validate before an expensive run: validation drives a bounded synthetic series.
 
 ```ts
 const compiled = await qts.compileStrategy(source);

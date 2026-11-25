@@ -48,7 +48,7 @@ export const DEFAULT_LIVE_URL = 'wss://rt.qtsurfer.net/connection/websocket';
 export interface LiveConnectionOptions {
   /** Override the Centrifugo endpoint, for example in an integration test. */
   url?: string;
-  /** Called for every signal published while subscribed; offset is present when history is enabled. */
+  /** Called for every signal published while subscribed. REST-only system signals are excluded. */
   onSignal: (signal: LiveSignal, offset?: number) => void;
   /** Called when Centrifugo reports an asynchronous transport error. */
   onError?: (error: unknown) => void;
@@ -85,7 +85,7 @@ export interface LiveSignalHistory extends LiveSignalHistoryPosition {
 
 /** Options for reading the channel's retained sandbox signals. */
 export interface LiveSignalHistoryOptions {
-  /** Defaults to 300, the channel's maximum retention; zero reads only the position. */
+  /** Maximum number of signals to request, default 300. Zero reads only the position. */
   limit?: number;
   /** Return only signals after this position. */
   since?: LiveSignalHistoryPosition;
@@ -236,7 +236,7 @@ export async function revokeLiveStream(runId: string): Promise<LiveStreamRevoked
   return data;
 }
 
-/** Update parameters through REST when a real-time connection is not needed. */
+/** Update parameters through REST. A waiting run stores the values and omits `effectiveAtMs`. */
 export async function updateLiveParams(
   runId: string,
   request: UpdateLiveParamsRequest,
@@ -269,8 +269,8 @@ export async function sendLiveCommand(
  * Use the returned {@link LiveSignalPage}'s `_links.next.href` to obtain the
  * cursor for the next page. If the requested cursor is older than retention,
  * this throws
- * {@link LiveSignalCursorExpiredError}; resume without a cursor from the
- * earliest timestamp reported by the error.
+ * {@link LiveSignalCursorExpiredError}; resume without a cursor to start at
+ * the earliest retained position.
  */
 export async function getLiveSignals(
   runId: string,
@@ -278,7 +278,7 @@ export async function getLiveSignals(
 ): Promise<LiveSignalPage> {
   const { data, error, response } = await apiGetLiveRunSignals({ path: { runId }, query });
   if (response?.status === 410) {
-    throw new LiveSignalCursorExpiredError('Live signal cursor expired; restart without cursor from availableSinceMs.');
+    throw new LiveSignalCursorExpiredError('Live signal cursor expired; restart without a cursor.', error, response.status);
   }
   if (error) throw requestFailed('get live signals call', error, response?.status);
   if (!data) throw new QTSError('Empty live-signals response');
@@ -346,8 +346,8 @@ export class LiveConnection {
 
   /**
    * Read the signals retained on this subscribed channel, oldest first.
-   * Only sandbox signals are held (up to 300, until five minutes after the
-   * last sandbox signal). Subscribing and reconnecting do not replay them.
+   * The channel retains a limited number of sandbox signals for a limited
+   * time. Subscribing and reconnecting do not replay them.
    * A lost stream position rejects with Centrifugo error 112; retry without
    * `since`, and use REST `getLiveSignals()` for anything no longer retained.
    */
@@ -365,7 +365,7 @@ export class LiveConnection {
     };
   }
 
-  /** Update this run's parameters through the `live.params` WebSocket RPC. */
+  /** Update this run's parameters via `live.params`. A waiting run stores the values and omits `effectiveAtMs`. */
   async updateParams(params: Record<string, string>): Promise<LiveParamsUpdateResult> {
     const result = await this.centrifuge.rpc('live.params', { runId: this.runId, params });
     return result.data as LiveParamsUpdateResult;

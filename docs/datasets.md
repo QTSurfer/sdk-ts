@@ -1,4 +1,4 @@
-# Dataset uploads
+# Datasets and collections
 
 Start with an authenticated session; every snippet below uses `qts`:
 
@@ -60,6 +60,29 @@ await qts.finalizeDatasetUpload(created.datasetId, next.uploadId);
 Use `exchangeId: 'user'` and `datasetId` (optionally `datasetVersionId`) in `executeBacktest` or `sweep`.
 Those workflows still prepare the requested window before execution.
 
+## Organizing datasets into collections
+
+A collection is a folder for any dataset type. A dataset can belong to one collection, and its
+name stays unique across your account. Creating or importing a dataset accepts an optional
+`collectionId`. Fetching a dataset returns that field only while it belongs to a collection.
+
+```ts
+const collection = await qts.createCollection({ name: 'Majors' });
+const { datasetId } = await qts.createDataset({
+  name: 'BTC ticks', instrument: 'BTC/USDT', collectionId: collection.collectionId,
+});
+
+const datasets = await qts.getDatasets({ collectionId: collection.collectionId });
+await qts.moveDataset(datasetId, null);
+const rootDatasets = await qts.getDatasets({ collectionId: 'none' });
+```
+
+Use `getCollections()` or `getCollection(id)` to read dataset counts. Use
+`updateCollection(id, { name, description })` to rename it or change its description. Omit fields
+to leave them alone, or use a null description to clear it. `deleteCollection(id)` keeps the
+datasets and moves them back to the root. A collection you cannot access returns `404`.
+If creation returns `429 COLLECTIONS_LIMIT`, delete a collection before trying again.
+
 ## Importing market history
 
 `importDataset()` fetches CEX market history or DEX pool history, creates a dataset, and returns
@@ -86,12 +109,19 @@ console.log(state.version?.cadence);
 ```
 
 `name` is unique among your datasets (`409` if taken); `instrument` is a plain `BASE/QUOTE` pair.
-`from` is inclusive, `to` exclusive, and the span is capped by `getAccount().maxImportRangeHours`.
-Imports count towards the account's dataset and storage limits; `429` reports exceeded quotas.
+`from` is inclusive and `to` exclusive. Read `maxCexImportRangeHours` for the CEX range limit
+and `maxImportRangeHours` for the DEX pool range limit from `getAccount()`.
+Imports count towards dataset, storage, and concurrency limits. `429 IMPORT_CONCURRENT_LIMIT`
+includes a `retryAfter` value on `QTSError` when available. Wait for an import to finish before
+retrying. `PLAN_LIMIT` and `IMPORT_MONTHLY_QUOTA` require a change in quota or usage.
 The `202` response includes `cadence` when the result is already determined. A `402` means the
 requested cadence, or the native per-trade data requested by a DEX import, is not included in the
 plan. It is not retried; inspect `QTSError.upgradeUrl` when present and change the plan before
 trying again.
+
+An imported dataset's `meta` records the requested range, cadence, and source. Optionally include
+your own string-valued `meta` entries under the `user.*` and `pool.*` namespaces when calling
+`importDataset()`. Read the stored metadata on `getDataset()` or `getDatasets()`.
 
 For `type: 'cex'`, the `cex` block is required: choose a centralized `exchange` from
 `getExchanges()`, `segment: 'spot'` (the only supported import segment), and `dataType: 'ticker'`
@@ -114,10 +144,10 @@ allowed cadence explicitly to choose another candle width. Solana supports candl
 Elite plan uses its default cadence (`1s`) when omitted; `id`, `version`, and `factory` are never
 needed. A Solana pool address is base58 and case-sensitive: pass it exactly as written.
 
-Candle imports (explicit cadence or plan default) whose `from` is earlier than 180 days before the
-request return `400` immediately, for every network. Per-trade DEX imports and CEX imports do not
-have this history limit. DEX candles are not a contiguous grid: a bar can be absent when no trade
-occurred during that interval. Unsupported source/cadence combinations can still fail asynchronously.
+Imports outside the available history can return `400 IMPORT_OUTSIDE_HISTORY`. Check
+`maxCexHistoryDays` for CEX imports. A CEX import can also be refused because the requested
+cadence and range would exceed the file-size limit (`IMPORT_TOO_LARGE`) or cover fewer than two
+bars (`IMPORT_TOO_FEW_BARS`). DEX candles can have gaps when no trade occurred during an interval.
 
 ```ts
 const poolHistory = await qts.importDataset({

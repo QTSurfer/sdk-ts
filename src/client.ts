@@ -23,15 +23,21 @@ import {
   type DownloadFormat,
 } from './workflows/downloads';
 import {
+  createCollection,
   createDataset,
+  deleteCollection,
   deleteDataset,
   finalizeDatasetUpload,
   getDatasetImport,
+  getCollection,
+  getCollections,
   getDataset,
   getDatasetUpload,
   listDatasets,
   importDataset,
+  moveDataset,
   openDatasetUpload,
+  updateCollection,
   uploadDatasetFile,
   type CreateDatasetRequest,
   type Dataset,
@@ -39,10 +45,12 @@ import {
   type DatasetImport,
   type DatasetImportRequest,
   type DatasetImportState,
+  type DatasetListOptions,
   type DatasetUpload,
   type DatasetUploadSession,
   type DatasetUploadState,
 } from './workflows/datasets';
+import type { Collection, CollectionCreateRequest, CollectionDeleted, CollectionUpdateRequest } from '@qtsurfer/api-client';
 import {
   compileStrategy,
   getStrategy,
@@ -396,13 +404,13 @@ export class QTSurfer {
     return compileStrategy(source);
   }
 
-  /** List owned datasets; set `includeDeleted: true` to include deleted entries with `deletedAt`. */
-  getDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+  /** List owned datasets, optionally filtered by collection and deletion status. */
+  getDatasets(options?: DatasetListOptions): Promise<Dataset[]> {
     return listDatasets(options);
   }
 
   /** @deprecated Use {@link QTSurfer.getDatasets}. */
-  listDatasets(options?: { includeDeleted?: boolean }): Promise<Dataset[]> {
+  listDatasets(options?: DatasetListOptions): Promise<Dataset[]> {
     return this.getDatasets(options);
   }
 
@@ -429,6 +437,36 @@ export class QTSurfer {
   /** Soft-delete a dataset. Existing backtests remain unaffected. */
   deleteDataset(datasetId: string): Promise<void> {
     return deleteDataset(datasetId);
+  }
+
+  /** Move a dataset to a collection, or pass `null` to move it to the root. */
+  moveDataset(datasetId: string, collectionId: string | null): Promise<DatasetDetail> {
+    return moveDataset(datasetId, collectionId);
+  }
+
+  /** List owned collections with their dataset counts. */
+  getCollections(): Promise<Collection[]> {
+    return getCollections();
+  }
+
+  /** Read a collection and its dataset counts. */
+  getCollection(collectionId: string): Promise<Collection> {
+    return getCollection(collectionId);
+  }
+
+  /** Create a collection with the given name and description. */
+  createCollection(request: CollectionCreateRequest): Promise<Collection> {
+    return createCollection(request);
+  }
+
+  /** Rename a collection or change its description. */
+  updateCollection(collectionId: string, request: CollectionUpdateRequest): Promise<Collection> {
+    return updateCollection(collectionId, request);
+  }
+
+  /** Delete a collection and return its datasets to the root. */
+  deleteCollection(collectionId: string): Promise<CollectionDeleted> {
+    return deleteCollection(collectionId);
   }
 
   /** PUT raw CSV bytes to a dataset upload session's presigned URL. */
